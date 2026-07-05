@@ -1,4 +1,5 @@
 import type { Repository } from "../facade";
+import { GitError } from "../binding/libgit2";
 import { encodePktLine, FLUSH_PKT, concatBytes } from "./pktline";
 
 const ZERO_OID = "0".repeat(40);
@@ -17,8 +18,10 @@ export function buildAdvertisement(
     const headRef = repo.headRef();
     const headCommit = repo.commit(headRef);
     if (headCommit) entries.push({ oid: headCommit.oid, name: "HEAD" });
-  } catch {
-    // Empty repo - no HEAD exists
+  } catch (e) {
+    // Empty repo: git_repository_head() throws GIT_EUNBORNBRANCH (-9) when HEAD
+    // points at a branch with no commits yet. Any other failure should surface.
+    if (!(e instanceof GitError && e.code === -9 /* GIT_EUNBORNBRANCH */)) throw e;
   }
 
   for (const ref of repo.references()) {
