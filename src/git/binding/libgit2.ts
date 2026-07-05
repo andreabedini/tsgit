@@ -80,6 +80,7 @@ const SYMBOLS = {
   git_indexer_free: { args: [FFIType.ptr], returns: FFIType.void },
   git_revwalk_hide: { args: [FFIType.ptr, FFIType.ptr], returns: FFIType.i32 },
   git_packbuilder_new: { args: [FFIType.ptr, FFIType.ptr], returns: FFIType.i32 },
+  git_packbuilder_insert: { args: [FFIType.ptr, FFIType.ptr, FFIType.cstring], returns: FFIType.i32 },
   git_packbuilder_insert_walk: { args: [FFIType.ptr, FFIType.ptr], returns: FFIType.i32 },
   git_packbuilder_write_buf: { args: [FFIType.ptr, FFIType.ptr], returns: FFIType.i32 },
   git_packbuilder_free: { args: [FFIType.ptr], returns: FFIType.void },

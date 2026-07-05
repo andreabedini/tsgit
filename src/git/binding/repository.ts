@@ -554,22 +554,52 @@ class Repo implements WritableRepository {
     check(lib.git_revwalk_new(toPtr(ptr(walkSlot)), toPtr(this.handle)));
     const walk = readPtr(walkSlot);
     try {
-      for (const want of wants) {
-        check(lib.git_revwalk_push(toPtr(walk), toPtr(ptr(Buffer.from(want, "hex")))));
-      }
-      for (const have of haves) {
-        try {
-          check(lib.git_revwalk_hide(toPtr(walk), toPtr(ptr(Buffer.from(have, "hex")))));
-        } catch {
-          // Client-declared "have" not present in our history (e.g. an
-          // unrelated fork) -- fine to ignore for negotiation purposes.
-        }
-      }
-
       const pbSlot = ptrSlot();
       check(lib.git_packbuilder_new(toPtr(ptr(pbSlot)), toPtr(this.handle)));
       const pb = readPtr(pbSlot);
       try {
+        for (const want of wants) {
+          const wantBytes = Buffer.from(want, "hex");
+          // A "want" is not always a commit -- e.g. an annotated tag oid,
+          // which git_revwalk only follows through commit-parent links and
+          // therefore never visits. Non-commit wants must be inserted into
+          // the packbuilder directly (so the object itself is sent), then
+          // peeled to the commit they (transitively) point at so that
+          // commit's ancestry still gets walked.
+          const objSlot = ptrSlot();
+          check(lib.git_revparse_single(toPtr(ptr(objSlot)), toPtr(this.handle), cstr(want)));
+          const obj = readPtr(objSlot);
+          try {
+            if (lib.git_object_type(toPtr(obj)) === GIT_OBJECT_COMMIT) {
+              check(lib.git_revwalk_push(toPtr(walk), toPtr(ptr(wantBytes))));
+            } else {
+              check(lib.git_packbuilder_insert(toPtr(pb), toPtr(ptr(wantBytes)), toPtr(0)));
+              const commitSlot = ptrSlot();
+              const peelRc = lib.git_object_peel(toPtr(ptr(commitSlot)), toPtr(obj), GIT_OBJECT_COMMIT);
+              if (peelRc === 0) {
+                const commitObj = readPtr(commitSlot);
+                try {
+                  check(lib.git_revwalk_push(toPtr(walk), toPtr(lib.git_object_id(toPtr(commitObj)))));
+                } finally {
+                  lib.git_object_free(toPtr(commitObj));
+                }
+              }
+              // else: want peels to a tree/blob (no commit ancestry) -- the
+              // direct insert above already covers it.
+            }
+          } finally {
+            lib.git_object_free(toPtr(obj));
+          }
+        }
+        for (const have of haves) {
+          try {
+            check(lib.git_revwalk_hide(toPtr(walk), toPtr(ptr(Buffer.from(have, "hex")))));
+          } catch {
+            // Client-declared "have" not present in our history (e.g. an
+            // unrelated fork) -- fine to ignore for negotiation purposes.
+          }
+        }
+
         check(lib.git_packbuilder_insert_walk(toPtr(pb), toPtr(walk)));
 
         const gitBuf = new Uint8Array(24); // { ptr: void*, reserved: size_t, size: size_t }
