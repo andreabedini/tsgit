@@ -71,7 +71,9 @@ test("buildAdvertisement emits the capabilities^{} placeholder for an empty repo
   const repo = openRepository(join(root, "empty.git"));
   try {
     const body = buildAdvertisement(repo, "git-upload-pack");
-    const { lines } = readUntilFlush(body, decodePktLine(body, 0).next);
+    const afterAnnouncement = decodePktLine(body, 0).next;
+    const afterFirstFlush = decodePktLine(body, afterAnnouncement).next;
+    const { lines } = readUntilFlush(body, afterFirstFlush);
     expect(lines.length).toBe(1);
     const text = new TextDecoder().decode(lines[0]);
     expect(text.startsWith("0000000000000000000000000000000000000000 capabilities^{}\0")).toBe(true);
