@@ -33,12 +33,25 @@ In scope:
 Out of scope (explicitly deferred):
 
 - pre-receive / update / post-receive hooks.
-- Protocol v2.
+- Protocol v2 (see Roadmap — planned as a follow-up, not abandoned).
 - Shallow clone, partial clone (filters), `git archive` (`upload-archive`).
 - SSH transport — HTTP(S) only.
 - Side-band progress/error messages beyond what `report-status` requires.
 - Per-repo push authorization (opt-in/opt-out) — a repo is pushable iff it's
   bare and the pusher authenticates.
+
+## Roadmap
+
+This spec covers protocol v0 only — v0 and v2 negotiate independently (a v2
+client sends a `Git-Protocol: version=2` request header; absent that header,
+a server just speaks v0), so v2 support can land as a separate follow-up
+without reworking what's built here:
+
+1. **This spec** — v0 fetch + push.
+2. **Follow-up** — protocol v2: `ls-refs` and `fetch` commands replacing the
+   v0 ref advertisement + `want`/`have` negotiation, capability advertisement
+   via key=value pairs. `receive-pack` is unchanged by v2 (v2 only redefines
+   the fetch side of the protocol).
 
 ## Routes
 
