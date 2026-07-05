@@ -106,4 +106,6 @@ export interface WritableRepository extends Repository {
    * value does not match `oldOidHex`.
    */
   updateRef(name: string, oldOidHex: string, newOidHex: string): void;
+  /** Writes a raw packfile's objects into this repo's object database. */
+  indexPack(data: Uint8Array): void;
 }

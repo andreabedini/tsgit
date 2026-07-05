@@ -72,6 +72,12 @@ const SYMBOLS = {
   git_reference_lookup: { args: [FFIType.ptr, FFIType.ptr, FFIType.cstring], returns: FFIType.i32 },
   git_reference_create_matching: { args: [FFIType.ptr, FFIType.ptr, FFIType.cstring, FFIType.ptr, FFIType.i32, FFIType.ptr, FFIType.cstring], returns: FFIType.i32 },
   git_reference_remove: { args: [FFIType.ptr, FFIType.cstring], returns: FFIType.i32 },
+  git_repository_odb: { args: [FFIType.ptr, FFIType.ptr], returns: FFIType.i32 },
+  git_odb_free: { args: [FFIType.ptr], returns: FFIType.void },
+  git_indexer_new: { args: [FFIType.ptr, FFIType.cstring, FFIType.u32, FFIType.ptr, FFIType.ptr], returns: FFIType.i32 },
+  git_indexer_append: { args: [FFIType.ptr, FFIType.ptr, FFIType.u64, FFIType.ptr], returns: FFIType.i32 },
+  git_indexer_commit: { args: [FFIType.ptr, FFIType.ptr], returns: FFIType.i32 },
+  git_indexer_free: { args: [FFIType.ptr], returns: FFIType.void },
 } as const satisfies Record<string, FFIFunction>;
 
 // Build the ordered candidate list: env override first, then unversioned name,

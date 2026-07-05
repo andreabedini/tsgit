@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import type {
   Repository, WritableRepository, Reference, Commit, Signature, LogOptions, LogPage, TreeEntry, CommitDiff, DiffFile, DiffHunk, DiffLine, DiffStatus,
 } from "../facade";
@@ -521,6 +522,30 @@ class Repo implements WritableRepository {
       return Number(lib.git_blob_rawsize(toPtr(obj)));
     } finally {
       lib.git_object_free(toPtr(obj));
+    }
+  }
+
+  // `git_indexer_progress` is a required (non-nullable) out-param struct:
+  // 6x uint32 + a size_t, with no padding on 64-bit (24 bytes align to 8
+  // already) -> 32 bytes total. We don't read it back (no progress reporting).
+  indexPack(data: Uint8Array): void {
+    const odbSlot = ptrSlot();
+    check(lib.git_repository_odb(toPtr(ptr(odbSlot)), toPtr(this.handle)));
+    const odb = readPtr(odbSlot);
+    try {
+      const idxSlot = ptrSlot();
+      const packDir = join(this.path, "objects", "pack");
+      check(lib.git_indexer_new(toPtr(ptr(idxSlot)), cstr(packDir), 0, toPtr(odb), toPtr(0)));
+      const idx = readPtr(idxSlot);
+      try {
+        const stats = new Uint8Array(32);
+        check(lib.git_indexer_append(toPtr(idx), toPtr(ptr(data)), data.length, toPtr(ptr(stats))));
+        check(lib.git_indexer_commit(toPtr(idx), toPtr(ptr(stats))));
+      } finally {
+        lib.git_indexer_free(toPtr(idx));
+      }
+    } finally {
+      lib.git_odb_free(toPtr(odb));
     }
   }
 
