@@ -549,6 +549,46 @@ class Repo implements WritableRepository {
     }
   }
 
+  packObjects(wants: string[], haves: string[]): Uint8Array {
+    const walkSlot = ptrSlot();
+    check(lib.git_revwalk_new(toPtr(ptr(walkSlot)), toPtr(this.handle)));
+    const walk = readPtr(walkSlot);
+    try {
+      for (const want of wants) {
+        check(lib.git_revwalk_push(toPtr(walk), toPtr(ptr(Buffer.from(want, "hex")))));
+      }
+      for (const have of haves) {
+        try {
+          check(lib.git_revwalk_hide(toPtr(walk), toPtr(ptr(Buffer.from(have, "hex")))));
+        } catch {
+          // Client-declared "have" not present in our history (e.g. an
+          // unrelated fork) -- fine to ignore for negotiation purposes.
+        }
+      }
+
+      const pbSlot = ptrSlot();
+      check(lib.git_packbuilder_new(toPtr(ptr(pbSlot)), toPtr(this.handle)));
+      const pb = readPtr(pbSlot);
+      try {
+        check(lib.git_packbuilder_insert_walk(toPtr(pb), toPtr(walk)));
+
+        const gitBuf = new Uint8Array(24); // { ptr: void*, reserved: size_t, size: size_t }
+        check(lib.git_packbuilder_write_buf(toPtr(ptr(gitBuf)), toPtr(pb)));
+        try {
+          const dataPtr = Number(read.ptr(toPtr(ptr(gitBuf)), 0));
+          const size = readU64At(ptr(gitBuf), 16);
+          return new Uint8Array(toArrayBuffer(toPtr(dataPtr), 0, size)).slice();
+        } finally {
+          lib.git_buf_dispose(toPtr(ptr(gitBuf)));
+        }
+      } finally {
+        lib.git_packbuilder_free(toPtr(pb));
+      }
+    } finally {
+      lib.git_revwalk_free(toPtr(walk));
+    }
+  }
+
   free(): void {
     if (this.handle) { // 0 = already freed (libgit2 uses 0 as the null-pointer sentinel)
       lib.git_repository_free(toPtr(this.handle));

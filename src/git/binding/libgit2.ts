@@ -78,6 +78,12 @@ const SYMBOLS = {
   git_indexer_append: { args: [FFIType.ptr, FFIType.ptr, FFIType.u64, FFIType.ptr], returns: FFIType.i32 },
   git_indexer_commit: { args: [FFIType.ptr, FFIType.ptr], returns: FFIType.i32 },
   git_indexer_free: { args: [FFIType.ptr], returns: FFIType.void },
+  git_revwalk_hide: { args: [FFIType.ptr, FFIType.ptr], returns: FFIType.i32 },
+  git_packbuilder_new: { args: [FFIType.ptr, FFIType.ptr], returns: FFIType.i32 },
+  git_packbuilder_insert_walk: { args: [FFIType.ptr, FFIType.ptr], returns: FFIType.i32 },
+  git_packbuilder_write_buf: { args: [FFIType.ptr, FFIType.ptr], returns: FFIType.i32 },
+  git_packbuilder_free: { args: [FFIType.ptr], returns: FFIType.void },
+  git_buf_dispose: { args: [FFIType.ptr], returns: FFIType.void },
 } as const satisfies Record<string, FFIFunction>;
 
 // Build the ordered candidate list: env override first, then unversioned name,
