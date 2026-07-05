@@ -32,11 +32,21 @@ export function decodePktLine(data: Uint8Array, offset: number): { line: Decoded
 }
 
 // Reads data pkt-lines from `offset` up to (and past) the next flush-pkt.
+// Skips an initial flush-pkt if found at the starting offset.
 // `next` points just after the flush-pkt, so callers can slice any raw bytes
 // that follow it (e.g. a packfile, which is not itself pkt-line framed).
 export function readUntilFlush(data: Uint8Array, offset = 0): { lines: Uint8Array[]; next: number } {
   const lines: Uint8Array[] = [];
   let pos = offset;
+
+  // Skip initial flush if present
+  const { line: firstLine, next: firstNext } = decodePktLine(data, pos);
+  if (firstLine.type === "flush") {
+    pos = firstNext;
+  } else {
+    pos = offset;
+  }
+
   while (true) {
     const { line, next } = decodePktLine(data, pos);
     pos = next;
