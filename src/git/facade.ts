@@ -100,4 +100,10 @@ export interface Repository {
 export interface WritableRepository extends Repository {
   /** True for bare repositories (no checked-out working tree) — push targets must be bare. */
   isBare(): boolean;
+  /**
+   * Atomically create (`oldOidHex` all zeros), update, or delete
+   * (`newOidHex` all zeros) a ref. Throws `GitError` if the ref's current
+   * value does not match `oldOidHex`.
+   */
+  updateRef(name: string, oldOidHex: string, newOidHex: string): void;
 }

@@ -3,7 +3,7 @@ import type {
 } from "../facade";
 import {
   lib, ensureInit, ptrSlot, oidSlot, readPtr, cstr, check, toPtr,
-  ptr, read, toArrayBuffer, CString,
+  ptr, read, toArrayBuffer, CString, GitError,
 } from "./libgit2";
 // (oidSlot/cstr/read/toArrayBuffer/CString/Commit/Signature are used by methods
 //  added in Tasks 5-7; importing them now keeps repository.ts stable across tasks.)
@@ -64,6 +64,52 @@ class Repo implements WritableRepository {
 
   isBare(): boolean {
     return lib.git_repository_is_bare(toPtr(this.handle)) === 1;
+  }
+
+  updateRef(name: string, oldOidHex: string, newOidHex: string): void {
+    const isCreate = oldOidHex === "0".repeat(40);
+    const isDelete = newOidHex === "0".repeat(40);
+    const current = this.lookupDirectTargetOid(name);
+    const expected = isCreate ? null : oldOidHex;
+    if (current !== expected) {
+      throw new GitError(`ref ${name}: stale info`, -15 /* GIT_EMODIFIED */);
+    }
+
+    if (isDelete) {
+      check(lib.git_reference_remove(toPtr(this.handle), cstr(name)));
+      return;
+    }
+
+    const newOidBytes = Buffer.from(newOidHex, "hex");
+    const currentIdBytes = current ? Buffer.from(current, "hex") : null;
+    const outSlot = ptrSlot();
+    check(
+      lib.git_reference_create_matching(
+        toPtr(ptr(outSlot)),
+        toPtr(this.handle),
+        cstr(name),
+        toPtr(ptr(newOidBytes)),
+        1, // force: overwrite is fine, current_id below still enforces the CAS
+        currentIdBytes ? toPtr(ptr(currentIdBytes)) : toPtr(0),
+        toPtr(0),
+      ),
+    );
+    lib.git_reference_free(toPtr(readPtr(outSlot)));
+  }
+
+  // Looks up a ref by exact name and returns its direct target oid (hex), or
+  // null if the ref does not exist. Used by updateRef's CAS check.
+  private lookupDirectTargetOid(name: string): string | null {
+    const slot = ptrSlot();
+    const rc = lib.git_reference_lookup(toPtr(ptr(slot)), toPtr(this.handle), cstr(name));
+    if (rc === -3 /* GIT_ENOTFOUND */) return null;
+    check(rc);
+    const refPtr = readPtr(slot);
+    try {
+      return this.directTargetOid(refPtr);
+    } finally {
+      lib.git_reference_free(toPtr(refPtr));
+    }
   }
 
   references(): Reference[] {

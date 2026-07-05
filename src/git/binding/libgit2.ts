@@ -69,6 +69,9 @@ const SYMBOLS = {
   git_patch_num_hunks: { args: [FFIType.ptr], returns: FFIType.u64 },
   git_patch_get_hunk: { args: [FFIType.ptr, FFIType.ptr, FFIType.ptr, FFIType.u64], returns: FFIType.i32 },
   git_patch_get_line_in_hunk: { args: [FFIType.ptr, FFIType.ptr, FFIType.u64, FFIType.u64], returns: FFIType.i32 },
+  git_reference_lookup: { args: [FFIType.ptr, FFIType.ptr, FFIType.cstring], returns: FFIType.i32 },
+  git_reference_create_matching: { args: [FFIType.ptr, FFIType.ptr, FFIType.cstring, FFIType.ptr, FFIType.i32, FFIType.ptr, FFIType.cstring], returns: FFIType.i32 },
+  git_reference_remove: { args: [FFIType.ptr, FFIType.cstring], returns: FFIType.i32 },
 } as const satisfies Record<string, FFIFunction>;
 
 // Build the ordered candidate list: env override first, then unversioned name,
