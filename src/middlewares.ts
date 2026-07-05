@@ -8,9 +8,11 @@ import { findRepo, openRepository } from "./git";
 export const useRepository = factory.createMiddleware(async (c, next) => {
   // Redirect-only stubs (`/repo`, `/repo/log`) lack a trailing slash and get sent
   // to their slash form by appendTrailingSlash — don't open a repo we'd discard.
-  // tree/raw are genuine slash-less content paths, so open the repo for those.
+  // tree/raw and the smart-HTTP endpoints are genuine slash-less content paths,
+  // so open the repo for those.
   const p = c.req.path;
-  if (!p.endsWith("/") && !p.includes("/tree/") && !p.includes("/raw/")) return next();
+  const isSmartHttp = p.endsWith("/info/refs") || p.endsWith("/git-upload-pack") || p.endsWith("/git-receive-pack");
+  if (!p.endsWith("/") && !p.includes("/tree/") && !p.includes("/raw/") && !isSmartHttp) return next();
 
   const disc = findRepo(c.env.TSGIT_SCAN_PATH, c.req.param("repo")!); // present: matched by /:repo/*
   c.set("disc", disc);

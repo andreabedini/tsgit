@@ -5,6 +5,7 @@ import { loadConfig } from "./config/config";
 import { notFound, statusForError } from "./errors";
 import { openRepository } from "./git";
 import { scanRepos } from "./git/scan";
+import { registerSmartHttpRoutes } from "./git/smart-http/routes";
 import { isBinary, classifyBlob } from "./blob";
 import { highlightBlob } from "./highlight";
 import { mimeForPath } from "./mime";
@@ -75,6 +76,8 @@ export function createApp() {
   // exposes it (and its discovered metadata) on the context.
   app.use("/:repo/*", repoLayout);
   app.use("/:repo/*", useRepository);
+
+  registerSmartHttpRoutes(app);
 
   app.get("/:repo/", async (c) => {
     const repo = c.get("repo");
