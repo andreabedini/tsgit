@@ -12,7 +12,7 @@ export const useRepository = factory.createMiddleware(async (c, next) => {
   const p = c.req.path;
   if (!p.endsWith("/") && !p.includes("/tree/") && !p.includes("/raw/")) return next();
 
-  const disc = findRepo(c.env.CGIT_SCAN_PATH, c.req.param("repo")!); // present: matched by /:repo/*
+  const disc = findRepo(c.env.TSGIT_SCAN_PATH, c.req.param("repo")!); // present: matched by /:repo/*
   c.set("disc", disc);
 
   const repo = openRepository(disc.path);

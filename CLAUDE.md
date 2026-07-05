@@ -1,4 +1,4 @@
-# cgit-ts
+# tsgit
 
 A TypeScript/Bun rewrite of [cgit](https://git.zx2c4.com/cgit) — a fast, read-only web
 frontend for browsing git repositories. Reads git data through **libgit2 via Bun FFI**
@@ -18,10 +18,10 @@ override the path with `LIBGIT2_PATH`).
 Entry point is `src/server.tsx`: `createApp()` builds a Hono app, and the default export
 is a Bun server object (`{ port, fetch }`) that calls `app.fetch(req, loadConfig())`.
 
-- **`src/app/env.ts`** — the Hono `Env`. `Bindings` is the `CGIT_*` config (carried on
+- **`src/app/env.ts`** — the Hono `Env`. `Bindings` is the `TSGIT_*` config (carried on
   `c.env`); `Variables` are the per-request `disc` (discovered repo) and `repo` (open
   handle). `factory = createFactory<Env>()`.
-- **`src/config/config.ts`** — `loadConfig()` reads `CGIT_*` from `process.env` into the
+- **`src/config/config.ts`** — `loadConfig()` reads `TSGIT_*` from `process.env` into the
   Bindings shape. Config is **passed as `c.env`**, not imported as a singleton.
 - **`src/middlewares.ts`** — `useRepository` resolves `/:repo/` to an open libgit2 handle
   on the context and **frees it after the handler runs** (handlers never open/free repos).
@@ -43,14 +43,14 @@ is a Bun server object (`{ port, fetch }`) that calls `app.fetch(req, loadConfig
   `useRequestContext`.
 - **`src/errors.ts`** — `HttpError` + `statusForError`/`notFound`/`badRequest`.
 - **`src/format.ts`** — `abbrevOid`, `formatAge`.
-- **`src/public/`** — `cgit.css`, the sole stylesheet. A dark-only, Rose Pine–derived
+- **`src/public/`** — `tsgit.css`, the sole stylesheet. A dark-only, Rose Pine–derived
   skin (the "Bedini Homelab" design): vendored design tokens followed by `.cg-*`
   component classes. No CSS framework.
 
 ## Conventions
 
 - **Request context over ViewModels/providers.** Handlers read repo/config off the
-  context (`c.get("repo")`, `c.env.CGIT_*`); don't thread state through render props or
+  context (`c.get("repo")`, `c.env.TSGIT_*`); don't thread state through render props or
   add provider layers.
 - **Helpers take explicit args, never `Context`** — taking `Context` in a controller
   kills Hono's path-param type inference.
@@ -62,17 +62,17 @@ is a Bun server object (`{ port, fetch }`) that calls `app.fetch(req, loadConfig
   (routes, redirects, 404, content types) — keep it green. `tests/fixtures/repo.ts`
   builds deterministic fixture repos.
 
-## Config (`CGIT_*` environment variables)
+## Config (`TSGIT_*` environment variables)
 
 | Variable | Default | Notes |
 |---|---|---|
-| `CGIT_SCAN_PATH` | `/srv/git` | directory scanned for repositories |
-| `CGIT_CLONE_URL_BASE` | — | base for displayed clone URLs |
-| `CGIT_SUMMARY_BRANCHES` | `10` | branches on the summary page |
-| `CGIT_SUMMARY_TAGS` | `10` | tags on the summary page |
-| `CGIT_SUMMARY_LOG` | `10` | recent commits on the summary page |
-| `CGIT_LOG_PAGE_SIZE` | `50` | commits per log page |
-| `CGIT_REPOLIST_PAGE_SIZE` | `50` | repositories per index page |
+| `TSGIT_SCAN_PATH` | `/srv/git` | directory scanned for repositories |
+| `TSGIT_CLONE_URL_BASE` | — | base for displayed clone URLs |
+| `TSGIT_SUMMARY_BRANCHES` | `10` | branches on the summary page |
+| `TSGIT_SUMMARY_TAGS` | `10` | tags on the summary page |
+| `TSGIT_SUMMARY_LOG` | `10` | recent commits on the summary page |
+| `TSGIT_LOG_PAGE_SIZE` | `50` | commits per log page |
+| `TSGIT_REPOLIST_PAGE_SIZE` | `50` | repositories per index page |
 
 ## Design docs
 

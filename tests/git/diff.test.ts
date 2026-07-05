@@ -27,7 +27,7 @@ async function run(cwd: string, ...args: string[]): Promise<void> {
 }
 
 async function createMergeFixtureRepo(): Promise<{ path: string; cleanup: () => void }> {
-  const root = mkdtempSync(join(tmpdir(), "cgit-ts-diff-"));
+  const root = mkdtempSync(join(tmpdir(), "tsgit-diff-"));
   try {
     const work = join(root, "work");
     const bare = join(root, "repo.git");

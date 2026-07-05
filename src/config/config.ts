@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { YAML } from "bun";
 import type { Env } from "../app/env";
 
-// Config is carried on the request as Bindings (c.env). This is the CGIT_*
+// Config is carried on the request as Bindings (c.env). This is the TSGIT_*
 // shape, so loadConfig() reads straight from a process.env-like record.
 export type SiteConfig = Env["Bindings"];
 
@@ -31,7 +31,7 @@ function num(value: string | undefined, fallback: number): number {
 // Missing file -> defaults only. A present-but-unreadable/malformed file throws
 // (config is loaded once at startup, so this fails fast).
 function loadMimeTypes(env: Record<string, string | undefined>): Record<string, string> {
-  const path = env.CGIT_CONFIG ?? "./cgit.yaml";
+  const path = env.TSGIT_CONFIG ?? "./tsgit.yaml";
   let text: string;
   try {
     text = readFileSync(path, "utf8");
@@ -42,7 +42,7 @@ function loadMimeTypes(env: Record<string, string | undefined>): Record<string, 
   const doc = YAML.parse(text) as { mimetype?: unknown } | null;
   const raw = doc?.mimetype;
   if (raw != null && (typeof raw !== "object" || Array.isArray(raw))) {
-    throw new TypeError("cgit config: 'mimetype' must be a mapping of extension to MIME type");
+    throw new TypeError("tsgit config: 'mimetype' must be a mapping of extension to MIME type");
   }
   const merged: Record<string, string> = { ...DEFAULT_MIME_TYPES };
   for (const [ext, type] of Object.entries((raw as Record<string, string>) ?? {})) {
@@ -55,13 +55,13 @@ export function loadConfig(
   env: Record<string, string | undefined> = process.env,
 ): SiteConfig {
   return {
-    CGIT_SCAN_PATH: env.CGIT_SCAN_PATH ?? "/srv/git",
-    CGIT_CLONE_URL_BASE: env.CGIT_CLONE_URL_BASE,
-    CGIT_SUMMARY_BRANCHES: num(env.CGIT_SUMMARY_BRANCHES, 10),
-    CGIT_SUMMARY_TAGS: num(env.CGIT_SUMMARY_TAGS, 10),
-    CGIT_SUMMARY_LOG: num(env.CGIT_SUMMARY_LOG, 10),
-    CGIT_LOG_PAGE_SIZE: num(env.CGIT_LOG_PAGE_SIZE, 50),
-    CGIT_REPOLIST_PAGE_SIZE: num(env.CGIT_REPOLIST_PAGE_SIZE, 50),
+    TSGIT_SCAN_PATH: env.TSGIT_SCAN_PATH ?? "/srv/git",
+    TSGIT_CLONE_URL_BASE: env.TSGIT_CLONE_URL_BASE,
+    TSGIT_SUMMARY_BRANCHES: num(env.TSGIT_SUMMARY_BRANCHES, 10),
+    TSGIT_SUMMARY_TAGS: num(env.TSGIT_SUMMARY_TAGS, 10),
+    TSGIT_SUMMARY_LOG: num(env.TSGIT_SUMMARY_LOG, 10),
+    TSGIT_LOG_PAGE_SIZE: num(env.TSGIT_LOG_PAGE_SIZE, 50),
+    TSGIT_REPOLIST_PAGE_SIZE: num(env.TSGIT_REPOLIST_PAGE_SIZE, 50),
     mimeTypes: loadMimeTypes(env),
   };
 }

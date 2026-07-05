@@ -36,7 +36,7 @@ async function run(cwd: string, ...args: string[]): Promise<void> {
 }
 
 export async function createFixtureRepo(): Promise<FixtureRepo> {
-  const root = mkdtempSync(join(tmpdir(), "cgit-ts-fixture-"));
+  const root = mkdtempSync(join(tmpdir(), "tsgit-fixture-"));
   try {
     const work = join(root, "work");
     const bare = join(root, "repo.git");

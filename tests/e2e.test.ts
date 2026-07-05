@@ -19,12 +19,12 @@ const req = (path: string) => app.request(path, undefined, cfg);
 
 beforeAll(async () => {
   fixture = await createFixtureRepo();
-  root = mkdtempSync(join(tmpdir(), "cgit-ts-e2e-"));
+  root = mkdtempSync(join(tmpdir(), "tsgit-e2e-"));
   await Bun.spawn(["cp", "-r", fixture.path, join(root, "project.git")]).exited;
   app = createApp();
   cfg = {
-    CGIT_SCAN_PATH: root, CGIT_SUMMARY_BRANCHES: 10, CGIT_SUMMARY_TAGS: 10,
-    CGIT_SUMMARY_LOG: 10, CGIT_LOG_PAGE_SIZE: 2, CGIT_REPOLIST_PAGE_SIZE: 50,
+    TSGIT_SCAN_PATH: root, TSGIT_SUMMARY_BRANCHES: 10, TSGIT_SUMMARY_TAGS: 10,
+    TSGIT_SUMMARY_LOG: 10, TSGIT_LOG_PAGE_SIZE: 2, TSGIT_REPOLIST_PAGE_SIZE: 50,
     mimeTypes: DEFAULT_MIME_TYPES,
   };
   const repo = openRepository(join(root, "project.git"));
@@ -174,8 +174,8 @@ test("GET /project/raw/main/icon.gif serves image/gif", async () => {
   expect(res.headers.get("content-type")).toBe("image/gif");
 });
 
-test("GET /cgit.css serves the stylesheet", async () => {
-  const res = await req("/cgit.css");
+test("GET /tsgit.css serves the stylesheet", async () => {
+  const res = await req("/tsgit.css");
   expect(res.status).toBe(200);
   expect(res.headers.get("content-type")).toContain("text/css");
 });

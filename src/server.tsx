@@ -26,22 +26,22 @@ export function createApp() {
   app.use(renderer);
 
   // Infra routes are registered before the repo sub-app so requests like
-  // `/healthz` or `/cgit.css` never match the `/:repo` redirect.
+  // `/healthz` or `/tsgit.css` never match the `/:repo` redirect.
   app.get("/healthz", (c) => c.text("ok"));
-  app.get("/cgit.css", serveStatic({ path: "./src/public/cgit.css" }));
+  app.get("/tsgit.css", serveStatic({ path: "./src/public/tsgit.css" }));
 
   app.get("/", (c) => {
     // Optional `?q=` filters the index by repo name or description.
     const q = (c.req.query("q") ?? "").trim();
     const needle = q.toLowerCase();
-    const matched = scanRepos(c.env.CGIT_SCAN_PATH).filter(
+    const matched = scanRepos(c.env.TSGIT_SCAN_PATH).filter(
       (r) =>
         !needle ||
         r.name.toLowerCase().includes(needle) ||
         (r.description ?? "").toLowerCase().includes(needle),
     );
     // Numbered pagination UI is a later milestone; cap to the first page for now.
-    const repos = matched.slice(0, c.env.CGIT_REPOLIST_PAGE_SIZE);
+    const repos = matched.slice(0, c.env.TSGIT_REPOLIST_PAGE_SIZE);
     const entries: RepoListEntry[] = repos.map((repo) => {
       const handle = openRepository(repo.path);
       try {
@@ -52,9 +52,9 @@ export function createApp() {
       }
     });
     let host: string | undefined;
-    if (c.env.CGIT_CLONE_URL_BASE) {
+    if (c.env.TSGIT_CLONE_URL_BASE) {
       try {
-        host = new URL(c.env.CGIT_CLONE_URL_BASE).host;
+        host = new URL(c.env.TSGIT_CLONE_URL_BASE).host;
       } catch {
         host = undefined;
       }
@@ -81,7 +81,7 @@ export function createApp() {
     const refs = repo.references();
     const branches = refs.filter((r) => r.kind === "branch");
     const tags = refs.filter((r) => r.kind === "tag");
-    const recentCommits = repo.log({ limit: c.env.CGIT_SUMMARY_LOG }).commits;
+    const recentCommits = repo.log({ limit: c.env.TSGIT_SUMMARY_LOG }).commits;
 
     const disc = c.get("disc");
     const readme = repo.readFileAtRef(repo.headRef(), "README.md");
@@ -94,8 +94,8 @@ export function createApp() {
       <SummaryPage
         name={disc.name}
         description={disc.description}
-        branches={branches.slice(0, c.env.CGIT_SUMMARY_BRANCHES)}
-        tags={tags.slice(0, c.env.CGIT_SUMMARY_TAGS)}
+        branches={branches.slice(0, c.env.TSGIT_SUMMARY_BRANCHES)}
+        tags={tags.slice(0, c.env.TSGIT_SUMMARY_TAGS)}
         recentCommits={recentCommits}
         decorations={decorations}
         aboutHtml={aboutHtml}
@@ -112,7 +112,7 @@ export function createApp() {
     const repo = c.get("repo");
     const ref = c.req.query("h") || repo.headRef();
     const offset = Math.max(0, Number(c.req.query("ofs") ?? 0) | 0);
-    const limit = c.env.CGIT_LOG_PAGE_SIZE;
+    const limit = c.env.TSGIT_LOG_PAGE_SIZE;
     const page = repo.log({ ref, offset, limit });
     const decorations = repo.decorations();
 

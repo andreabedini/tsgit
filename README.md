@@ -1,4 +1,4 @@
-# cgit-ts
+# tsgit
 
 A TypeScript rewrite of [cgit](https://git.zx2c4.com/cgit), the read-only web frontend for
 git repositories. Built on [Bun](https://bun.sh) and [Hono](https://hono.dev), it reads
@@ -19,7 +19,7 @@ native build step.
 
 ```sh
 bun install
-CGIT_SCAN_PATH=/path/to/your/git/repos bun run dev
+TSGIT_SCAN_PATH=/path/to/your/git/repos bun run dev
 # then open http://localhost:3000
 ```
 
@@ -27,17 +27,17 @@ Set `PORT` to change the listening port (default `3000`).
 
 ## Configuration
 
-All configuration comes from `CGIT_*` environment variables:
+All configuration comes from `TSGIT_*` environment variables:
 
 | Variable | Default | Description |
 |---|---|---|
-| `CGIT_SCAN_PATH` | `/srv/git` | Directory scanned for git repositories (bare or non-bare) |
-| `CGIT_CLONE_URL_BASE` | — | If set, shown as the clone-URL base on the summary page |
-| `CGIT_SUMMARY_BRANCHES` | `10` | Branches listed on the summary page |
-| `CGIT_SUMMARY_TAGS` | `10` | Tags listed on the summary page |
-| `CGIT_SUMMARY_LOG` | `10` | Recent commits on the summary page |
-| `CGIT_LOG_PAGE_SIZE` | `50` | Commits per page on the log view |
-| `CGIT_REPOLIST_PAGE_SIZE` | `50` | Repositories per page on the index |
+| `TSGIT_SCAN_PATH` | `/srv/git` | Directory scanned for git repositories (bare or non-bare) |
+| `TSGIT_CLONE_URL_BASE` | — | If set, shown as the clone-URL base on the summary page |
+| `TSGIT_SUMMARY_BRANCHES` | `10` | Branches listed on the summary page |
+| `TSGIT_SUMMARY_TAGS` | `10` | Tags listed on the summary page |
+| `TSGIT_SUMMARY_LOG` | `10` | Recent commits on the summary page |
+| `TSGIT_LOG_PAGE_SIZE` | `50` | Commits per page on the log view |
+| `TSGIT_REPOLIST_PAGE_SIZE` | `50` | Repositories per page on the index |
 
 ## Development
 
@@ -56,7 +56,7 @@ and [`docs/`](./docs) for the design specs and implementation plans.
 src/
   server.tsx        # Hono app + Bun server entry
   app/env.ts        # typed Env (config bindings + request vars)
-  config/           # CGIT_* config loader
+  config/           # TSGIT_* config loader
   middlewares.ts    # repo resolution + lifecycle
   git/              # libgit2 facade (binding/ = bun:ffi)
   views/default/    # JSX pages + layouts
@@ -67,5 +67,5 @@ docs/               # design specs + implementation plans
 
 ## License
 
-cgit-ts is a rewrite of cgit, which is distributed under the GNU GPL v2. Add a `LICENSE`
+tsgit is a rewrite of cgit, which is distributed under the GNU GPL v2. Add a `LICENSE`
 file to make the license of this project explicit before distributing it.

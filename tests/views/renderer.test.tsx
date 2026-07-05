@@ -30,7 +30,7 @@ test("renderer wraps content in a full HTML document with the stylesheet", async
   const app = appWith((c) => c.render(<p>hello</p>));
   const html = await (await app.request("/")).text();
   expect(html).toContain("<!DOCTYPE html>");
-  expect(html).toContain('href="/cgit.css"');
+  expect(html).toContain('href="/tsgit.css"');
   expect(html).toContain("<p>hello</p>");
 });
 

@@ -5,13 +5,13 @@ import { DiscoveredRepo } from "../git/scan";
 
 export type Env = {
   Bindings: {
-    CGIT_SCAN_PATH: string;
-    CGIT_CLONE_URL_BASE?: string;
-    CGIT_SUMMARY_BRANCHES: number;
-    CGIT_SUMMARY_TAGS: number;
-    CGIT_SUMMARY_LOG: number;
-    CGIT_LOG_PAGE_SIZE: number;
-    CGIT_REPOLIST_PAGE_SIZE: number;
+    TSGIT_SCAN_PATH: string;
+    TSGIT_CLONE_URL_BASE?: string;
+    TSGIT_SUMMARY_BRANCHES: number;
+    TSGIT_SUMMARY_TAGS: number;
+    TSGIT_SUMMARY_LOG: number;
+    TSGIT_LOG_PAGE_SIZE: number;
+    TSGIT_REPOLIST_PAGE_SIZE: number;
     mimeTypes: Record<string, string>;
   };
   Variables: {

@@ -14,11 +14,11 @@ let cfg: SiteConfig;
 
 beforeAll(async () => {
   fixture = await createFixtureRepo();
-  root = mkdtempSync(join(tmpdir(), "cgit-ts-resolver-"));
+  root = mkdtempSync(join(tmpdir(), "tsgit-resolver-"));
   await Bun.spawn(["cp", "-r", fixture.path, join(root, "project.git")]).exited;
   cfg = {
-    CGIT_SCAN_PATH: root, CGIT_SUMMARY_BRANCHES: 10, CGIT_SUMMARY_TAGS: 10,
-    CGIT_SUMMARY_LOG: 10, CGIT_LOG_PAGE_SIZE: 2, CGIT_REPOLIST_PAGE_SIZE: 50,
+    TSGIT_SCAN_PATH: root, TSGIT_SUMMARY_BRANCHES: 10, TSGIT_SUMMARY_TAGS: 10,
+    TSGIT_SUMMARY_LOG: 10, TSGIT_LOG_PAGE_SIZE: 2, TSGIT_REPOLIST_PAGE_SIZE: 50,
   };
 });
 

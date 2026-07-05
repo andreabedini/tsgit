@@ -1,9 +1,9 @@
 /* ==========================================================================
-   cgit-ts — Bedini Homelab skin
+   tsgit — Bedini Homelab skin
    A Rose Pine–derived dark theme: quiet near-black surfaces, a gold nameplate
    and a single teal "go" accent. Dark-only by design; this is the sole
    stylesheet (no Terminal.css). Tokens below are vendored from the Bedini
-   Homelab Design System, followed by the cgit-specific component classes.
+   Homelab Design System, followed by the tsgit-specific component classes.
    ========================================================================== */
 
 /* ---- Tokens: color ----------------------------------------------------- */
@@ -186,7 +186,6 @@ h1, h2, h3, h4 {
   color: var(--text-strong);
   letter-spacing: -0.01em;
 }
-.cg-wordmark .sep { color: var(--text-faint); }
 .cg-cursor {
   width: 8px;
   height: 17px;

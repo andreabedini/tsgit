@@ -1,5 +1,5 @@
-# cgit-ts configuration. Point the server at this file with the CGIT_CONFIG
-# environment variable, or place it at ./cgit.yaml. All sections are optional;
+# tsgit configuration. Point the server at this file with the TSGIT_CONFIG
+# environment variable, or place it at ./tsgit.yaml. All sections are optional;
 # a missing file falls back to built-in defaults.
 
 # Map file extensions to MIME types. These override and extend the built-in

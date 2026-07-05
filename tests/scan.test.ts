@@ -12,7 +12,7 @@ let root: string;
 beforeAll(async () => {
   fixture = await createFixtureRepo();
   // Place the bare fixture repo under a fresh scan root as "project.git".
-  root = mkdtempSync(join(tmpdir(), "cgit-ts-scan-"));
+  root = mkdtempSync(join(tmpdir(), "tsgit-scan-"));
   const dest = join(root, "project.git");
   mkdirSync(dirname(dest), { recursive: true });
   await Bun.spawn(["cp", "-r", fixture.path, dest]).exited;
@@ -27,9 +27,9 @@ test("scanRepos discovers bare repos and strips .git from the name", () => {
   expect(repos[0].path).toBe(join(root, "project.git"));
 });
 
-test("loadConfig provides defaults and honors CGIT_SCAN_PATH", () => {
-  const cfg = loadConfig({ CGIT_SCAN_PATH: "/srv/git" });
-  expect(cfg.CGIT_SCAN_PATH).toBe("/srv/git");
-  expect(cfg.CGIT_LOG_PAGE_SIZE).toBeGreaterThan(0);
-  expect(cfg.CGIT_SUMMARY_LOG).toBeGreaterThan(0);
+test("loadConfig provides defaults and honors TSGIT_SCAN_PATH", () => {
+  const cfg = loadConfig({ TSGIT_SCAN_PATH: "/srv/git" });
+  expect(cfg.TSGIT_SCAN_PATH).toBe("/srv/git");
+  expect(cfg.TSGIT_LOG_PAGE_SIZE).toBeGreaterThan(0);
+  expect(cfg.TSGIT_SUMMARY_LOG).toBeGreaterThan(0);
 });

@@ -1,5 +1,5 @@
 {
-  "name": "cgit-ts",
+  "name": "tsgit",
   "module": "src/server.tsx",
   "type": "module",
   "private": true,
