@@ -2,6 +2,7 @@ import { createFactory } from 'hono/factory'
 
 import { Commit, CommitDiff, Repository } from "../git";
 import { DiscoveredRepo } from "../git/scan";
+import type { HtpasswdEntry } from "../config/htpasswd";
 
 export type Env = {
   Bindings: {
@@ -12,7 +13,9 @@ export type Env = {
     TSGIT_SUMMARY_LOG: number;
     TSGIT_LOG_PAGE_SIZE: number;
     TSGIT_REPOLIST_PAGE_SIZE: number;
+    TSGIT_HTPASSWD_FILE?: string;
     mimeTypes: Record<string, string>;
+    pushCredentials: HtpasswdEntry[];
   };
   Variables: {
     disc: DiscoveredRepo;

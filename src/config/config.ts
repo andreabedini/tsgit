@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { YAML } from "bun";
 import type { Env } from "../app/env";
+import { parseHtpasswd, type HtpasswdEntry } from "./htpasswd";
 
 // Config is carried on the request as Bindings (c.env). This is the TSGIT_*
 // shape, so loadConfig() reads straight from a process.env-like record.
@@ -51,6 +52,22 @@ function loadMimeTypes(env: Record<string, string | undefined>): Record<string, 
   return merged;
 }
 
+// Missing file -> no credentials (every push request will then 401, since no
+// user can match). A present-but-unreadable/malformed-permissions file throws,
+// consistent with loadMimeTypes' fail-fast-at-startup behavior.
+function loadHtpasswd(env: Record<string, string | undefined>): HtpasswdEntry[] {
+  const path = env.TSGIT_HTPASSWD_FILE;
+  if (!path) return [];
+  let text: string;
+  try {
+    text = readFileSync(path, "utf8");
+  } catch (e) {
+    if ((e as { code?: string }).code === "ENOENT") return [];
+    throw e;
+  }
+  return parseHtpasswd(text);
+}
+
 export function loadConfig(
   env: Record<string, string | undefined> = process.env,
 ): SiteConfig {
@@ -62,6 +79,8 @@ export function loadConfig(
     TSGIT_SUMMARY_LOG: num(env.TSGIT_SUMMARY_LOG, 10),
     TSGIT_LOG_PAGE_SIZE: num(env.TSGIT_LOG_PAGE_SIZE, 50),
     TSGIT_REPOLIST_PAGE_SIZE: num(env.TSGIT_REPOLIST_PAGE_SIZE, 50),
+    TSGIT_HTPASSWD_FILE: env.TSGIT_HTPASSWD_FILE,
     mimeTypes: loadMimeTypes(env),
+    pushCredentials: loadHtpasswd(env),
   };
 }
