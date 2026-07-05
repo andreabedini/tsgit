@@ -12,7 +12,7 @@ import { parseHtpasswd } from "../src/config/htpasswd";
 let fixture: FixtureRepo;
 let scanRoot: string;
 let workRoot: string;
-let server: Server;
+let server: Server<undefined>;
 let baseUrl: string;
 const PASSWORD = "secret123";
 

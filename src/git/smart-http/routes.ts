@@ -20,7 +20,7 @@ export function registerSmartHttpRoutes(app: App): void {
     }
     const repo = c.get("repo");
     const body = buildAdvertisement(repo, service);
-    return new Response(body, {
+    return new Response(body as BodyInit, {
       headers: {
         "Content-Type": `application/x-${service}-advertisement`,
         "Cache-Control": "no-cache",
@@ -33,7 +33,7 @@ export function registerSmartHttpRoutes(app: App): void {
     const body = new Uint8Array(await c.req.arrayBuffer());
     const { wants, haves } = parseUploadPackRequest(body);
     const response = buildUploadPackResponse(repo, wants, haves);
-    return new Response(response, {
+    return new Response(response as BodyInit, {
       headers: { "Content-Type": "application/x-git-upload-pack-result" },
     });
   });
@@ -49,7 +49,7 @@ export function registerSmartHttpRoutes(app: App): void {
     const { commands } = parseReceiveCommands(lines);
     const packBytes = body.subarray(next);
     const result = applyReceivePack(repo, commands, packBytes);
-    return new Response(encodeReportStatus(result), {
+    return new Response(encodeReportStatus(result) as BodyInit, {
       headers: { "Content-Type": "application/x-git-receive-pack-result" },
     });
   });

@@ -7,6 +7,7 @@ import { createFixtureRepo, type FixtureRepo } from "../fixtures/repo";
 import { useRepository } from "../../src/middlewares";
 import type { Env } from "../../src/app/env";
 import type { SiteConfig } from "../../src/config/config";
+import { DEFAULT_MIME_TYPES } from "../../src/config/config";
 
 let fixture: FixtureRepo;
 let root: string;
@@ -19,6 +20,7 @@ beforeAll(async () => {
   cfg = {
     TSGIT_SCAN_PATH: root, TSGIT_SUMMARY_BRANCHES: 10, TSGIT_SUMMARY_TAGS: 10,
     TSGIT_SUMMARY_LOG: 10, TSGIT_LOG_PAGE_SIZE: 2, TSGIT_REPOLIST_PAGE_SIZE: 50,
+    mimeTypes: DEFAULT_MIME_TYPES, pushCredentials: [],
   };
 });
 

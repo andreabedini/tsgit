@@ -92,6 +92,35 @@ test("applyReceivePack indexes the pack and creates the requested ref", async ()
   }
 });
 
+test("applyReceivePack succeeds for a delete-only push with an empty pack", async () => {
+  const root = mkdtempSync(join(tmpdir(), "tsgit-applyreceive-delete-"));
+  roots.push(root);
+  const targetPath = join(root, "target.git");
+  await Bun.spawn(["git", "init", "-q", "--bare", targetPath]).exited;
+
+  const headOid = (() => {
+    const r = openRepository(fixture.path);
+    try { return r.commit(r.headRef())!.oid; } finally { r.free(); }
+  })();
+  const pack = await buildPack(fixture.path);
+
+  const target = openRepository(targetPath);
+  try {
+    // First create the branch (needs the real pack)...
+    const created = applyReceivePack(target, [{ oldOid: "0".repeat(40), newOid: headOid, name: "refs/heads/main" }], pack);
+    expect(created.unpackOk).toBe(true);
+    expect(target.commit("refs/heads/main")?.oid).toBe(headOid);
+
+    // ...then delete it with an EMPTY pack (as a real git delete-only push sends).
+    const deleted = applyReceivePack(target, [{ oldOid: headOid, newOid: "0".repeat(40), name: "refs/heads/main" }], new Uint8Array(0));
+    expect(deleted.unpackOk).toBe(true);
+    expect(deleted.refResults).toEqual([{ name: "refs/heads/main", ok: true }]);
+    expect(target.commit("refs/heads/main")).toBeNull();
+  } finally {
+    target.free();
+  }
+});
+
 test("applyReceivePack reports a CAS failure without touching the ref", async () => {
   const root = mkdtempSync(join(tmpdir(), "tsgit-applyreceive-cas-"));
   roots.push(root);

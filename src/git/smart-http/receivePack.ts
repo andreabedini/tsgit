@@ -42,14 +42,16 @@ export function applyReceivePack(
   commands: ReceiveCommand[],
   packBytes: Uint8Array,
 ): ReceiveResult {
-  try {
-    repo.indexPack(packBytes);
-  } catch (err) {
-    return {
-      unpackOk: false,
-      unpackError: err instanceof Error ? err.message : String(err),
-      refResults: commands.map((c) => ({ name: c.name, ok: false, reason: "unpacker error" })),
-    };
+  if (packBytes.length > 0) {
+    try {
+      repo.indexPack(packBytes);
+    } catch (err) {
+      return {
+        unpackOk: false,
+        unpackError: err instanceof Error ? err.message : String(err),
+        refResults: commands.map((c) => ({ name: c.name, ok: false, reason: "unpacker error" })),
+      };
+    }
   }
 
   const refResults = commands.map((cmd) => {

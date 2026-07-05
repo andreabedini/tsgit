@@ -579,7 +579,8 @@ class Repo implements WritableRepository {
               if (peelRc === 0) {
                 const commitObj = readPtr(commitSlot);
                 try {
-                  check(lib.git_revwalk_push(toPtr(walk), toPtr(lib.git_object_id(toPtr(commitObj)))));
+                  const oidPtr = Number(lib.git_object_id(toPtr(commitObj)));
+                  check(lib.git_revwalk_push(toPtr(walk), toPtr(oidPtr)));
                 } finally {
                   lib.git_object_free(toPtr(commitObj));
                 }
