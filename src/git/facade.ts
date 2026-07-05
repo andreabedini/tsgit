@@ -91,3 +91,13 @@ export interface Repository {
   tree(ref: string, path: string): TreeEntry[] | null;
   free(): void;
 }
+
+// Write primitives used only by the smart-HTTP module (src/git/smart-http/).
+// Kept off `Repository` so the read-only facade the HTML views depend on stays
+// untouched; `openRepository` returns this wider type, so `Repository`-typed
+// call sites are unaffected (structural subtyping) while smart-http code can
+// use the extra methods.
+export interface WritableRepository extends Repository {
+  /** True for bare repositories (no checked-out working tree) — push targets must be bare. */
+  isBare(): boolean;
+}

@@ -4,6 +4,7 @@ import { join } from "node:path";
 
 export interface FixtureRepo {
   path: string;             // path to the bare repo
+  workPath: string;         // path to the non-bare working-tree repo the bare repo is cloned from
   commitSubjects: string[]; // newest-first
   branches: string[];
   tags: string[];
@@ -66,6 +67,7 @@ export async function createFixtureRepo(): Promise<FixtureRepo> {
     const cleanup = () => rmSync(root, { recursive: true, force: true });
     return {
       path: bare,
+      workPath: work,
       commitSubjects: ["Add b.txt", "Add a.txt", "Add README"],
       branches: ["main"],
       tags: ["v1.0", "v2.0"],

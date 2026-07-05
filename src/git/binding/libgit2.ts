@@ -14,6 +14,7 @@ const SYMBOLS = {
   git_repository_open: { args: [FFIType.ptr, FFIType.cstring], returns: FFIType.i32 },
   git_repository_free: { args: [FFIType.ptr], returns: FFIType.void },
   git_repository_head: { args: [FFIType.ptr, FFIType.ptr], returns: FFIType.i32 },
+  git_repository_is_bare: { args: [FFIType.ptr], returns: FFIType.i32 },
   git_reference_shorthand: { args: [FFIType.ptr], returns: FFIType.cstring },
   git_reference_free: { args: [FFIType.ptr], returns: FFIType.void },
   git_error_last: { args: [], returns: FFIType.ptr },

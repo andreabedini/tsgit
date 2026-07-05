@@ -1,5 +1,5 @@
 import type {
-  Repository, Reference, Commit, Signature, LogOptions, LogPage, TreeEntry, CommitDiff, DiffFile, DiffHunk, DiffLine, DiffStatus,
+  Repository, WritableRepository, Reference, Commit, Signature, LogOptions, LogPage, TreeEntry, CommitDiff, DiffFile, DiffHunk, DiffLine, DiffStatus,
 } from "../facade";
 import {
   lib, ensureInit, ptrSlot, oidSlot, readPtr, cstr, check, toPtr,
@@ -46,7 +46,7 @@ function readByteAt(base: number, offset: number): number {
   return new Uint8Array(toArrayBuffer(toPtr(base), offset, 1))[0] ?? 0;
 }
 
-class Repo implements Repository {
+class Repo implements WritableRepository {
   constructor(readonly path: string, private handle: number) {}
 
   headRef(): string {
@@ -60,6 +60,10 @@ class Repo implements Repository {
     } finally {
       lib.git_reference_free(toPtr(refPtr));
     }
+  }
+
+  isBare(): boolean {
+    return lib.git_repository_is_bare(toPtr(this.handle)) === 1;
   }
 
   references(): Reference[] {
@@ -482,7 +486,7 @@ class Repo implements Repository {
   }
 }
 
-export function openRepository(path: string): Repository {
+export function openRepository(path: string): WritableRepository {
   ensureInit();
   const slot = ptrSlot();
   check(lib.git_repository_open(toPtr(ptr(slot)), cstr(path)));

@@ -1,6 +1,6 @@
 import { createFactory } from 'hono/factory'
 
-import { Commit, CommitDiff, Repository } from "../git";
+import { Commit, CommitDiff, WritableRepository } from "../git";
 import { DiscoveredRepo } from "../git/scan";
 import type { HtpasswdEntry } from "../config/htpasswd";
 
@@ -19,7 +19,7 @@ export type Env = {
   };
   Variables: {
     disc: DiscoveredRepo;
-    repo: Repository;
+    repo: WritableRepository;
     commit: Commit;
     diff: CommitDiff;
   }
