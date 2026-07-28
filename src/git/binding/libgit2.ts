@@ -49,6 +49,7 @@ const SYMBOLS = {
   git_commit_parent: { args: [FFIType.ptr, FFIType.ptr, FFIType.u32], returns: FFIType.i32 },
   git_commit_parent_id: { args: [FFIType.ptr, FFIType.u32], returns: FFIType.ptr },
   git_commit_tree: { args: [FFIType.ptr, FFIType.ptr], returns: FFIType.i32 },
+  git_commit_tree_id: { args: [FFIType.ptr], returns: FFIType.ptr },
   git_revwalk_push: { args: [FFIType.ptr, FFIType.ptr], returns: FFIType.i32 },
   git_revparse_single: { args: [FFIType.ptr, FFIType.ptr, FFIType.cstring], returns: FFIType.i32 },
   git_object_peel: { args: [FFIType.ptr, FFIType.ptr, FFIType.i32], returns: FFIType.i32 },

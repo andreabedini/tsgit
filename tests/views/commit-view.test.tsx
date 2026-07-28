@@ -13,6 +13,7 @@ const commit: Commit = {
   summary: "Add a.txt",
   message: "Add a.txt\n\nBody line\n",
   parents: ["b".repeat(40)],
+  treeOid: "c".repeat(40),
   changeId: null,
 };
 
@@ -41,6 +42,8 @@ test("CommitCard renders metadata, refs and parent/tree links", async () => {
   expect(html).toContain("ann@example.com");
   expect(html).toContain('href="/proj/commit/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/"');
   expect(html).toContain('href="/proj/tree/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/"');
+  // The tree link is labelled with the tree's own oid, like commit and parent.
+  expect(html).toContain(">cccccccccc</a>");
   expect(html).toContain('class="ref branch"');
   expect(html).toContain("Body line"); // full message body, not just the summary
 });

@@ -1,5 +1,5 @@
 import { useRequestContext } from "hono/jsx-renderer";
-import { initials, formatAge } from "../../format";
+import { abbrevOid, initials, formatAge } from "../../format";
 import { treeHref, commitHref } from "./utils";
 import { Env } from "../../app/env";
 
@@ -48,7 +48,7 @@ export function CommitCard() {
           </span>
         ) : null}
         <span>
-          tree <a class="cg-hash" href={tree}>browse files</a>
+          tree <a class="cg-hash" href={tree}>{abbrevOid(commit.treeOid)}</a>
         </span>
       </div>
     </div>

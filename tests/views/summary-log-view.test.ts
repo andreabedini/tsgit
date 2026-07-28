@@ -16,7 +16,7 @@ function commit(oid: string, summary: string, changeId: string | null = null): C
     oid, abbrevOid: oid.slice(0, 10),
     author: { name: "Ann", email: "a@x.io", when },
     committer: { name: "Ann", email: "a@x.io", when },
-    summary, message: summary + "\n", parents: [], changeId,
+    summary, message: summary + "\n", parents: [], treeOid: "c".repeat(40), changeId,
   };
 }
 

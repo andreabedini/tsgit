@@ -12,6 +12,8 @@ export interface Commit {
   summary: string;
   message: string;
   parents: string[];
+  /** oid of the tree this commit points at. */
+  treeOid: string;
   /** jj change id from the commit's `change-id` header; null for plain git commits. */
   changeId: string | null;
 }

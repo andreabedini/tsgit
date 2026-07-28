@@ -475,8 +475,9 @@ class Repo implements WritableRepository {
         const pid = Number(lib.git_commit_parent_id(toPtr(commit), i));
         parents.push(String(lib.git_oid_tostr_s(toPtr(pid))));
       }
+      const treeOid = String(lib.git_oid_tostr_s(toPtr(Number(lib.git_commit_tree_id(toPtr(commit))))));
       const changeId = this.readChangeId(commit);
-      return { oid, abbrevOid: oid.slice(0, 10), author, committer, summary, message, parents, changeId };
+      return { oid, abbrevOid: oid.slice(0, 10), author, committer, summary, message, parents, treeOid, changeId };
     } finally {
       lib.git_commit_free(toPtr(commit));
     }

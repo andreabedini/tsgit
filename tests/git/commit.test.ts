@@ -15,6 +15,11 @@ test("commit() resolves branches, tags, and oids", async () => {
 
       const byOid = repo.commit(head!.oid);
       expect(byOid?.message).toContain("Add b.txt");
+
+      // treeOid is the commit's own tree, not its oid.
+      expect(head!.treeOid).toMatch(/^[0-9a-f]{40}$/);
+      expect(head!.treeOid).not.toBe(head!.oid);
+      expect(repo.tree(head!.treeOid, "")?.map((e) => e.name)).toContain("README.md");
     } finally {
       repo.free();
     }
