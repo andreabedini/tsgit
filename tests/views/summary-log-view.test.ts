@@ -11,12 +11,12 @@ function ref(name: string, kind: "branch" | "tag", oid: string): Reference {
   return { name, kind, fullName: `refs/${kind === "branch" ? "heads" : "tags"}/${name}`, targetOid: oid, commitOid: oid };
 }
 
-function commit(oid: string, summary: string): Commit {
+function commit(oid: string, summary: string, changeId: string | null = null): Commit {
   return {
     oid, abbrevOid: oid.slice(0, 10),
     author: { name: "Ann", email: "a@x.io", when },
     committer: { name: "Ann", email: "a@x.io", when },
-    summary, message: summary + "\n", parents: [],
+    summary, message: summary + "\n", parents: [], changeId,
   };
 }
 

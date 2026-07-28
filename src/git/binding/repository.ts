@@ -6,6 +6,7 @@ import {
   lib, ensureInit, ptrSlot, oidSlot, readPtr, cstr, check, toPtr,
   ptr, read, toArrayBuffer, CString, GitError,
 } from "./libgit2";
+import { looksLikeChangeId } from "../changeid";
 // (oidSlot/cstr/read/toArrayBuffer/CString/Commit/Signature are used by methods
 //  added in Tasks 5-7; importing them now keeps repository.ts stable across tasks.)
 
@@ -15,6 +16,9 @@ const GIT_OBJECT_BLOB = 3;
 const GIT_SORT_TIME = 2;
 const GIT_SORT_TOPOLOGICAL = 1;
 const GIT_DIFF_FLAG_BINARY = 1 << 0;
+// Cap on how many commits `commitByChangeId` will read before giving up, so an
+// unknown change id in a URL costs a bounded amount of work.
+const CHANGE_ID_SCAN_LIMIT = 25_000;
 const GIT_DELTA_ADDED = 1;
 const GIT_DELTA_DELETED = 2;
 const GIT_DELTA_MODIFIED = 3;
@@ -41,6 +45,19 @@ function readU32At(base: number, offset: number): number {
 function readU64At(base: number, offset: number): number {
   const bytes = new Uint8Array(toArrayBuffer(toPtr(base), offset, 8));
   return Number(new DataView(bytes.buffer, bytes.byteOffset, 8).getBigUint64(0, true));
+}
+
+// Tie-break between several git commits carrying the same jj change id (jj wrote
+// a new one on every amend/describe/rebase). Newest wins; when the timestamps are
+// equal — the common case, since a rewrite lands in the same second — prefer the
+// one that has a description, since an empty message means a superseded snapshot
+// of work in progress. Oid last, purely so the choice is deterministic.
+function preferCommit(candidate: Commit, incumbent: Commit): boolean {
+  const byTime = candidate.committer.when.getTime() - incumbent.committer.when.getTime();
+  if (byTime !== 0) return byTime > 0;
+  const described = Number(candidate.message.trim().length > 0) - Number(incumbent.message.trim().length > 0);
+  if (described !== 0) return described > 0;
+  return candidate.oid < incumbent.oid;
 }
 
 function readByteAt(base: number, offset: number): number {
@@ -74,7 +91,15 @@ class Repo implements WritableRepository {
     try {
       // bun:ffi may return a CString (boxed String) for `returns: cstring`;
       // normalize to a primitive JS string.
-      return String(lib.git_reference_shorthand(toPtr(refPtr)));
+      const shorthand = String(lib.git_reference_shorthand(toPtr(refPtr)));
+      // Detached HEAD, which shorthands to the useless "HEAD". The jj git store
+      // is always like this — jj tracks the working copy itself and only writes
+      // an oid here — so name the branch sitting on that commit if there is one,
+      // giving the summary page a HEAD pill and the log a real ref to page by.
+      if (shorthand !== "HEAD") return shorthand;
+      const headOid = this.peelToCommitOid(refPtr);
+      const branch = this.references().find((r) => r.kind === "branch" && r.commitOid === headOid);
+      return branch?.name ?? shorthand;
     } finally {
       lib.git_reference_free(toPtr(refPtr));
     }
@@ -228,6 +253,12 @@ class Repo implements WritableRepository {
   }
 
   commit(rev: string): Commit | null {
+    // A jj change id is all k..z, so it can never be a valid oid prefix — no
+    // ambiguity with git revisions, and no wasted walk for ordinary revs.
+    if (looksLikeChangeId(rev)) {
+      const byChange = this.commitByChangeId(rev);
+      if (byChange) return byChange;
+    }
     const objSlot = ptrSlot();
     const rc = lib.git_revparse_single(toPtr(ptr(objSlot)), toPtr(this.handle), cstr(rev));
     if (rc === -3 /* GIT_ENOTFOUND */) return null;
@@ -245,6 +276,90 @@ class Repo implements WritableRepository {
       }
     } finally {
       lib.git_object_free(toPtr(obj));
+    }
+  }
+
+  // A git repo has no change-id index, so this walks history reading headers.
+  // Two passes: branches and tags first, then every ref. The order matters in a
+  // colocated repo, where refs/jj/keep/* also keeps *superseded* versions of a
+  // change alive (jj rewrites a commit on every amend/describe/rebase) — those
+  // would otherwise shadow the version a bookmark actually points at.
+  commitByChangeId(prefix: string): Commit | null {
+    if (!looksLikeChangeId(prefix)) return null;
+    return (
+      this.searchChangeId(prefix, ["refs/heads/*", "refs/tags/*"], true, "first") ??
+      this.searchChangeId(prefix, ["refs/*"], false, "best")
+    );
+  }
+
+  // Bounded by CHANGE_ID_SCAN_LIMIT so an unknown change id in a URL costs a
+  // fixed amount of work rather than a full-history walk on a huge repo.
+  //
+  // `pick`: "first" takes the first hit of a newest-first walk, which is right
+  // when a branch or tag vouches for the commit. "best" ranks every hit, needed
+  // for the refs/jj/keep pass because jj's rewrites of one change frequently
+  // share a committer *second* — so the walk order is effectively arbitrary
+  // between them and we have to break the tie ourselves.
+  private searchChangeId(
+    prefix: string,
+    globs: string[],
+    includeHead: boolean,
+    pick: "first" | "best",
+  ): Commit | null {
+    const walkSlot = ptrSlot();
+    check(lib.git_revwalk_new(toPtr(ptr(walkSlot)), toPtr(this.handle)));
+    const walk = readPtr(walkSlot);
+    try {
+      check(lib.git_revwalk_sorting(toPtr(walk), GIT_SORT_TIME));
+      let pushed = includeHead && this.pushHead(walk);
+      for (const glob of globs) {
+        const rc = lib.git_revwalk_push_glob(toPtr(walk), cstr(glob));
+        if (rc === -3 /* GIT_ENOTFOUND: no ref matches the glob */) continue;
+        check(rc);
+        pushed = true;
+      }
+      if (!pushed) return null;
+      const oid = oidSlot();
+      let best: Commit | null = null;
+      for (let scanned = 0; scanned < CHANGE_ID_SCAN_LIMIT; scanned++) {
+        const next = lib.git_revwalk_next(toPtr(ptr(oid)), toPtr(walk));
+        if (next === -31 /* GIT_ITEROVER */) break;
+        check(next);
+        if (!this.changeIdOf(oid)?.startsWith(prefix)) continue;
+        const hit = this.readCommit(oid);
+        if (pick === "first") return hit;
+        if (!best || preferCommit(hit, best)) best = hit;
+      }
+      return best;
+    } finally {
+      lib.git_revwalk_free(toPtr(walk));
+    }
+  }
+
+  private changeIdOf(oidBytes: Uint8Array): string | null {
+    const slot = ptrSlot();
+    check(lib.git_commit_lookup(toPtr(ptr(slot)), toPtr(this.handle), toPtr(ptr(oidBytes))));
+    const commit = readPtr(slot);
+    try {
+      return this.readChangeId(commit);
+    } finally {
+      lib.git_commit_free(toPtr(commit));
+    }
+  }
+
+  // jj's change id lives in an extra `change-id` commit header. Absent on plain
+  // git commits (and on jj commits written before jj 0.31), hence the null.
+  private readChangeId(commit: number): string | null {
+    const gitBuf = new Uint8Array(24); // { ptr: void*, reserved: size_t, size: size_t }
+    const rc = lib.git_commit_header_field(toPtr(ptr(gitBuf)), toPtr(commit), cstr("change-id"));
+    if (rc < 0) return null; // GIT_ENOTFOUND for a commit without the header
+    try {
+      const dataPtr = Number(read.ptr(toPtr(ptr(gitBuf)), 0));
+      const size = readU64At(ptr(gitBuf), 16);
+      if (!dataPtr || !size) return null;
+      return textDecoder.decode(new Uint8Array(toArrayBuffer(toPtr(dataPtr), 0, size))).trim();
+    } finally {
+      lib.git_buf_dispose(toPtr(ptr(gitBuf)));
     }
   }
 
@@ -318,7 +433,14 @@ class Repo implements WritableRepository {
   private pushRef(walk: number, ref: string): boolean {
     const objSlot = ptrSlot();
     const rc = lib.git_revparse_single(toPtr(ptr(objSlot)), toPtr(this.handle), cstr(ref));
-    if (rc === -3 /* GIT_ENOTFOUND */) return false;
+    if (rc === -3 /* GIT_ENOTFOUND */) {
+      // Not a git revision — it may still be a jj change id (`/log/?h=quqpyrzn`).
+      if (!looksLikeChangeId(ref)) return false;
+      const byChange = this.commitByChangeId(ref);
+      if (!byChange) return false;
+      check(lib.git_revwalk_push(toPtr(walk), toPtr(ptr(Buffer.from(byChange.oid, "hex")))));
+      return true;
+    }
     check(rc);
     const obj = readPtr(objSlot);
     try {
@@ -353,7 +475,8 @@ class Repo implements WritableRepository {
         const pid = Number(lib.git_commit_parent_id(toPtr(commit), i));
         parents.push(String(lib.git_oid_tostr_s(toPtr(pid))));
       }
-      return { oid, abbrevOid: oid.slice(0, 10), author, committer, summary, message, parents };
+      const changeId = this.readChangeId(commit);
+      return { oid, abbrevOid: oid.slice(0, 10), author, committer, summary, message, parents, changeId };
     } finally {
       lib.git_commit_free(toPtr(commit));
     }

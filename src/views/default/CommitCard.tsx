@@ -26,6 +26,11 @@ export function CommitCard() {
         ))}
       </div>
       <div class="cg-commit-meta">
+        {commit.changeId ? (
+          <span>
+            change <span class="cg-changeid">{commit.changeId}</span>
+          </span>
+        ) : null}
         <span>
           commit <span class="cg-hash">{commit.abbrevOid}</span>
         </span>

@@ -35,7 +35,17 @@ is a Bun server object (`{ port, fetch }`) that calls `app.fetch(req, loadConfig
     file — read them before touching bindings.**
   - `binding/repository.ts` — `openRepository()` + the `Repo` class implementing
     `Repository` over the FFI symbols (head, references, revwalk log, `readFileAtRef`).
-  - `scan.ts` — `scanRepos(root)` discovers bare/non-bare repos and reads `description`.
+  - `changeid.ts` — Jujutsu support: `looksLikeChangeId()` plus the notes on how jj's
+    `change-id` commit header works. jj commits are read as plain git; `Commit.changeId`
+    is `null` everywhere else. `commitByChangeId()` (in `binding/repository.ts`) walks
+    history because git has no change-id index — branches/tags first, then all refs.
+  - `jj.ts` — `resolveJjGitDir(dir)` maps a jj workspace to the git dir backing it,
+    via `.jj/repo/store/git_target` (handles the older in-store layout, `<ws>/.git`,
+    and `.jj/repo` as a file in an added workspace). Nothing else in `.jj/` is read.
+  - `scan.ts` — `scanRepos(root)` discovers bare/non-bare repos **and jj workspaces**
+    (`locateRepo` prefers a `.git`, then a bare dir, then `resolveJjGitDir`; the repo is
+    always named after the scanned directory, never the resolved git dir) and reads
+    `description`.
   - `index.ts` — re-exports the facade and `openRepository`, plus `findRepo`.
 - **`src/views/default/`** — Hono JSX pages (`RepolistPage`, `SummaryPage`, `LogPage`,
   `ErrorPage`) plus `renderer.tsx`: a root `jsxRenderer` document layout (`renderer`) and

@@ -8,6 +8,29 @@ native build step.
 > **Status:** early. The walking skeleton is in place — repository index, per-repo
 > summary, log, tree, commit, and diff pages — with refs still to come.
 
+## Jujutsu
+
+tsgit is jj-aware. jj records a commit's [change id](https://jj-vcs.github.io/jj/latest/glossary/#change-id)
+— the identity that survives amends and rebases — as an extra `change-id` header on
+the git commit object itself, so tsgit reads it straight out of the object database:
+no jj installation, no access to `.jj/`, and nothing to configure. Repos jj has never
+touched look exactly as before.
+
+Where a change id is present, tsgit shows it in place of (log: above) the commit hash,
+and it works as a revision anywhere a hash does — `/repo/commit/quqpyrzn/`,
+`/repo/log/?h=quqpyrzn`. Abbreviations are fine: change ids are spelled in jj's
+reverse-hex alphabet (`k`–`z`), so they can never be mistaken for an oid prefix.
+
+**jj workspaces are discovered too.** `TSGIT_SCAN_PATH` may hold jj workspaces as well
+as plain git repos, colocated or not — including the layout where there is no `.git`
+at all and the git dir sits inside `.jj/repo/store/`. tsgit reads the store's
+`git_target` to find it and serves the repo under the *workspace* directory's name.
+Only that pointer is read from `.jj/`; the operation log and working-copy state are
+left alone, so what you see is what jj has exported to git — bookmarks show up as
+branches, and commits jj hasn't exported stay reachable (and browsable by change id)
+through `refs/jj/keep/*`. Since jj keeps the store's `HEAD` detached, tsgit reports
+the branch sitting on that commit, if any, as the default ref.
+
 ## Requirements
 
 - [Bun](https://bun.sh)

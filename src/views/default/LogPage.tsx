@@ -1,5 +1,18 @@
 import type { Commit, Reference } from "../../git/facade";
-import { formatAge, initials } from "../../format";
+import { abbrevChangeId, formatAge, initials } from "../../format";
+
+/** For jj repos the change id is the identity that survives rewrites, so it leads
+ *  and the commit oid sits under it; plain git repos show the oid alone. */
+function IdCell(props: { commit: Commit }) {
+  const { commit } = props;
+  if (!commit.changeId) return <span class="cg-hash">{commit.abbrevOid}</span>;
+  return (
+    <span class="idcell">
+      <span class="cg-changeid" title={`change ${commit.changeId}`}>{abbrevChangeId(commit.changeId)}</span>
+      <span class="cg-oid-sub" title={`commit ${commit.oid}`}>{commit.abbrevOid}</span>
+    </span>
+  );
+}
 
 function Pager(props: { name: string; ref: string; offset: number; limit: number; hasPrev: boolean; hasNext: boolean }) {
   const base = `/${props.name}/log/?h=${props.ref}`;
@@ -33,18 +46,19 @@ export interface LogProps {
 }
 
 export function LogPage(props: LogProps) {
+  const anyChangeIds = props.commits.some((c) => c.changeId);
   return (
     <>
       <title>{`${props.name}: log`}</title>
       <div class="cg-logcard">
         <div class="cg-loghead">
-          <span>commit</span>
+          <span>{anyChangeIds ? "change" : "commit"}</span>
           <span>subject</span>
           <span>author</span>
         </div>
         {props.commits.map((commit) => (
           <a class="cg-logrow" href={`/${encodeURIComponent(props.name)}/commit/${encodeURIComponent(commit.oid)}/`}>
-            <span class="cg-hash">{commit.abbrevOid}</span>
+            <IdCell commit={commit} />
             <span class="subjcell">
               <span class="subject">{commit.summary}</span>
               {(props.decorations.get(commit.oid) ?? []).map((d) => (

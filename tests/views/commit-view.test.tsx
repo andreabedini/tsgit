@@ -13,6 +13,7 @@ const commit: Commit = {
   summary: "Add a.txt",
   message: "Add a.txt\n\nBody line\n",
   parents: ["b".repeat(40)],
+  changeId: null,
 };
 
 const refs: Reference[] = [

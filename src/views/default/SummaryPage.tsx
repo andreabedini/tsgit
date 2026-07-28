@@ -1,5 +1,5 @@
 import type { Commit, Reference } from "../../git/facade";
-import { abbrevOid, formatAge } from "../../format";
+import { abbrevChangeId, abbrevOid, formatAge } from "../../format";
 
 function commitHref(name: string, oid: string): string {
   return `/${encodeURIComponent(name)}/commit/${encodeURIComponent(oid)}/`;
@@ -57,7 +57,11 @@ export function SummaryPage(props: SummaryProps) {
               const refs = decorations.get(commit.oid) ?? [];
               return (
                 <a class="cg-row" href={commitHref(props.name, commit.oid)}>
-                  <span class="cg-hash">{commit.abbrevOid}</span>
+                  {commit.changeId ? (
+                    <span class="cg-changeid" title={`commit ${commit.oid}`}>{abbrevChangeId(commit.changeId)}</span>
+                  ) : (
+                    <span class="cg-hash">{commit.abbrevOid}</span>
+                  )}
                   <span class="subject">{commit.summary}</span>
                   {refs.map((r) => (
                     <span class={`ref ${r.kind}`}>{r.name}</span>

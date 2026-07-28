@@ -12,6 +12,8 @@ export interface Commit {
   summary: string;
   message: string;
   parents: string[];
+  /** jj change id from the commit's `change-id` header; null for plain git commits. */
+  changeId: string | null;
 }
 
 export type DiffStatus = "added" | "deleted" | "modified" | "renamed" | "copied" | "typechange";
@@ -80,8 +82,12 @@ export interface Repository {
   /** Groups references by the commit they point at, for decorating log rows. */
   decorations(): Map<string, Reference[]>;
   log(opts: LogOptions): LogPage;
-  /** Resolves a revision (ref or oid) to a single commit, or null if missing. */
+  /** Resolves a revision (ref, oid, or jj change id) to a single commit, or null if missing. */
   commit(rev: string): Commit | null;
+  /** Finds the commit whose jj change id starts with `prefix`. Null if none (or if
+   *  the search hit its scan cap without a match). Newest-first, so when a change
+   *  has several git commits (jj rewrote it) the latest one wins. */
+  commitByChangeId(prefix: string): Commit | null;
   /** Diffs a commit against its first parent, or the empty tree for root commits. */
   diff(rev: string): CommitDiff | null;
   /** Returns null if the path (or ref) was not found in the tree. */

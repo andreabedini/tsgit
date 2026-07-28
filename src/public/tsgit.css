@@ -252,6 +252,20 @@ h1, h2, h3, h4 {
 }
 a.cg-hash:hover { color: #c4ecf2; background: rgba(156, 207, 216, 0.2); }
 
+/* jj change id — a commit's identity across rewrites. Tinted with the accent so
+   it reads as a different kind of identifier than the foam-blue commit hash. */
+.cg-changeid {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--accent-soft);
+  background: var(--accent-ghost);
+  padding: 0.08em 0.42em;
+  border-radius: var(--radius-xs);
+  text-decoration: none;
+  white-space: nowrap;
+}
+a.cg-changeid:hover { color: var(--accent-hover); }
+
 /* Ref decorations (branch / tag pills) */
 .ref {
   display: inline-flex;
@@ -532,6 +546,9 @@ a.cg-hash:hover { color: #c4ecf2; background: rgba(156, 207, 216, 0.2); }
   cursor: pointer;
 }
 .cg-logrow:hover { background: var(--surface-hover); }
+/* jj rows stack change id over commit oid in the identity column. */
+.cg-logrow .idcell { display: flex; flex-direction: column; align-items: flex-start; gap: 0.2em; min-width: 0; }
+.cg-logrow .cg-oid-sub { font-family: var(--font-mono); font-size: 10px; color: var(--text-faint); padding-left: 0.42em; }
 .cg-logrow .subjcell { min-width: 0; display: flex; align-items: center; gap: 0.6em; }
 .cg-logrow .subject {
   font-size: var(--text-sm);
