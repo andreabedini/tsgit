@@ -3,16 +3,16 @@ import { DELIM_PKT, FLUSH_PKT, concatBytes, decodePktLine, encodePktLine, encode
 
 const decoder = new TextDecoder();
 
-// Only `ls-refs` and `fetch`, base features only (no shallow/filter/
-// ref-in-want/sideband-all/packfile-uris/wait-for-done) — matches this app's
-// v0 upload-pack, which doesn't implement those either. `receive-pack` (push)
-// is untouched by protocol v2, so there's no v2 advertisement for it.
+// Only `ls-refs` and `fetch`; of the fetch features only `shallow` (no filter/
+// ref-in-want/sideband-all/packfile-uris/wait-for-done) — matching this app's v0
+// upload-pack, which advertises the same one. `receive-pack` (push) is untouched
+// by protocol v2, so there's no v2 advertisement for it.
 export function buildV2Advertisement(): Uint8Array {
   const lines = [
     encodePktLine("version 2\n"),
     encodePktLine("agent=git/tsgit\n"),
     encodePktLine("ls-refs\n"),
-    encodePktLine("fetch\n"),
+    encodePktLine("fetch=shallow\n"),
     FLUSH_PKT,
   ];
   return concatBytes(lines);
@@ -113,20 +113,29 @@ export interface FetchV2Args {
   wants: string[];
   haves: string[];
   done: boolean;
+  /** Commits the client only has shallowly. Recorded, but see `deepen`. */
+  shallows: string[];
+  /** True if the client asked to *make* a shallow clone, which we don't serve. */
+  deepen: boolean;
 }
 
 export function parseFetchV2Args(args: string[]): FetchV2Args {
   const wants: string[] = [];
   const haves: string[] = [];
+  const shallows: string[] = [];
   let done = false;
+  let deepen = false;
   for (const arg of args) {
     if (arg.startsWith("want ")) wants.push(arg.slice(5, 45));
     else if (arg.startsWith("have ")) haves.push(arg.slice(5, 45));
     else if (arg === "done") done = true;
+    else if (arg.startsWith("shallow ")) shallows.push(arg.slice(8, 48));
+    // deepen / deepen-since / deepen-not / deepen-relative
+    else if (arg.startsWith("deepen")) deepen = true;
     // thin-pack / no-progress / include-tag / ofs-delta and other base fetch
     // args are accepted but not acted on — not implemented, same as v0.
   }
-  return { wants, haves, done };
+  return { wants, haves, done, shallows, deepen };
 }
 
 // A real negotiation loop (ACK/NAK rounds) isn't implemented, mirroring this
@@ -136,13 +145,28 @@ export function parseFetchV2Args(args: string[]): FetchV2Args {
 // that changes shape: omitted if the client already said "done", otherwise a
 // bare "ready" line stands in for the ACK/NAK round we're skipping.
 export function buildFetchV2Response(
-  repo: { packObjects(wants: string[], haves: string[]): Uint8Array },
+  repo: {
+    packObjects(wants: string[], haves: string[]): Uint8Array;
+    shallowRoots(): string[];
+  },
   fetchArgs: FetchV2Args,
 ): Uint8Array {
   const packBytes = repo.packObjects(fetchArgs.wants, fetchArgs.haves);
   const sections: Uint8Array[] = [];
   if (!fetchArgs.done) {
     sections.push(encodePktLine("acknowledgments\n"), encodePktLine("ready\n"), DELIM_PKT);
+  }
+  // Sections run acknowledgments -> shallow-info -> ... -> packfile. Our own
+  // boundary is reported whenever we have one, asked for or not — git's
+  // upload-pack does the same, and without it a client cloning a shallow repo
+  // goes looking for parents that were never fetched.
+  const shallowRoots = repo.shallowRoots();
+  if (shallowRoots.length) {
+    sections.push(
+      encodePktLine("shallow-info\n"),
+      ...shallowRoots.map((oid) => encodePktLine(`shallow ${oid}\n`)),
+      DELIM_PKT,
+    );
   }
   sections.push(encodePktLine("packfile\n"), ...encodeSidebandChunks(1, packBytes), FLUSH_PKT);
   return concatBytes(sections);

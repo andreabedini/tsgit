@@ -83,6 +83,13 @@ export interface Repository {
   references(): Reference[];
   /** Groups references by the commit they point at, for decorating log rows. */
   decorations(): Map<string, Reference[]>;
+  /**
+   * Commits at this repo's shallow boundary — the ones whose parents are
+   * deliberately absent (`<gitdir>/shallow`). Empty for a normal repo. Clients
+   * fetching from a shallow repo must be told these, or they'll ask for parents
+   * that don't exist.
+   */
+  shallowRoots(): string[];
   log(opts: LogOptions): LogPage;
   /** Resolves a revision (ref, oid, or jj change id) to a single commit, or null if missing. */
   commit(rev: string): Commit | null;

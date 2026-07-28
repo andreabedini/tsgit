@@ -11,8 +11,8 @@ import {
   parseV2Request,
 } from "./protocolV2";
 import { applyReceivePack, encodeReportStatus, parseReceiveCommands } from "./receivePack";
-import { buildUploadPackResponse, parseUploadPackRequest } from "./uploadPack";
-import { readUntilFlush } from "./pktline";
+import { buildUploadPackResponse, parseUploadPackRequest, DEEPEN_UNSUPPORTED } from "./uploadPack";
+import { encodeErrLine, readUntilFlush } from "./pktline";
 
 type App = ReturnType<typeof factory.createApp>;
 
@@ -52,13 +52,21 @@ export function registerSmartHttpRoutes(app: App): void {
       }
       if (command === "fetch") {
         const fetchArgs = parseFetchV2Args(args);
+        if (fetchArgs.deepen) {
+          return new Response(encodeErrLine(DEEPEN_UNSUPPORTED) as BodyInit, { headers: responseHeaders });
+        }
         return new Response(buildFetchV2Response(repo, fetchArgs) as BodyInit, { headers: responseHeaders });
       }
       throw badRequest(`Unsupported protocol v2 command: ${JSON.stringify(command)}`);
     }
 
-    const { wants, haves } = parseUploadPackRequest(body);
-    const response = buildUploadPackResponse(repo, wants, haves);
+    const { wants, haves, deepen } = parseUploadPackRequest(body);
+    // We can report our own shallow boundary, but not compute a new one for a
+    // client that wants a shallow clone. Say so rather than sending a full pack
+    // the client will misread (it would be waiting for a shallow-update).
+    const response = deepen
+      ? encodeErrLine(DEEPEN_UNSUPPORTED)
+      : buildUploadPackResponse(repo, wants, haves);
     return new Response(response as BodyInit, {
       headers: { "Content-Type": "application/x-git-upload-pack-result" },
     });

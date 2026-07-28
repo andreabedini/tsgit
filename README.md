@@ -8,6 +8,18 @@ native build step.
 > **Status:** early. The walking skeleton is in place — repository index, per-repo
 > summary, log, tree, commit, and diff pages — with refs still to come.
 
+## Git over HTTP
+
+Each repo is also a git remote: `git clone`/`fetch` need no configuration, and
+`git push` to a **bare** repo requires Basic auth (see `TSGIT_HTPASSWD_FILE`). Both wire
+protocol v0 and v2 are spoken.
+
+A repo that is *itself* shallow (say a published `--depth 1` clone) is served
+correctly: its boundary is advertised, so clients graft it instead of asking for
+parents that were never fetched. Asking tsgit to *create* a shallow clone
+(`git clone --depth N`) is refused with a clear message — computing a new boundary
+isn't implemented.
+
 ## Jujutsu
 
 tsgit is jj-aware. jj records a commit's [change id](https://jj-vcs.github.io/jj/latest/glossary/#change-id)

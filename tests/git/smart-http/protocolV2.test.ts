@@ -28,7 +28,8 @@ test("buildV2Advertisement opens with 'version 2' (no '# service=' line) and lis
   const lines = linesOf(body);
   expect(lines[0]).toBe("version 2");
   expect(lines).toContain("ls-refs");
-  expect(lines).toContain("fetch");
+  // `shallow` is the one fetch feature implemented, so it rides on the fetch line.
+  expect(lines).toContain("fetch=shallow");
   expect(lines.some((l) => l.startsWith("agent="))).toBe(true);
 });
 

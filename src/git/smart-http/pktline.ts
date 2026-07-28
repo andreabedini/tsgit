@@ -68,6 +68,12 @@ export function encodeSidebandChunks(streamCode: 1 | 2 | 3, data: Uint8Array): U
   return chunks;
 }
 
+// An `ERR <msg>` pkt-line: git clients abort with <msg> on seeing one, in both
+// protocol versions, which beats letting them parse a response we can't honour.
+export function encodeErrLine(message: string): Uint8Array {
+  return encodePktLine(`ERR ${message}\n`);
+}
+
 export function concatBytes(chunks: Uint8Array[]): Uint8Array {
   const total = chunks.reduce((sum, c) => sum + c.length, 0);
   const out = new Uint8Array(total);

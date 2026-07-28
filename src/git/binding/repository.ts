@@ -1,3 +1,4 @@
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type {
   Repository, WritableRepository, Reference, Commit, Signature, LogOptions, LogPage, TreeEntry, CommitDiff, DiffFile, DiffHunk, DiffLine, DiffStatus,
@@ -107,6 +108,23 @@ class Repo implements WritableRepository {
 
   isBare(): boolean {
     return lib.git_repository_is_bare(toPtr(this.handle)) === 1;
+  }
+
+  // libgit2 exposes only a yes/no `git_repository_is_shallow`, so read the file
+  // itself: one oid per line, the commits whose parents were never fetched.
+  // Boundary commits that are no longer in the odb are dropped — advertising one
+  // would send a client looking for an object nobody has.
+  shallowRoots(): string[] {
+    const commonDir = String(lib.git_repository_commondir(toPtr(this.handle)));
+    const shallowFile = join(commonDir, "shallow");
+    if (!existsSync(shallowFile)) return [];
+    const roots = new Set<string>();
+    for (const line of readFileSync(shallowFile, "utf8").split("\n")) {
+      const oid = line.trim();
+      if (!/^[0-9a-f]{40}$/.test(oid) || roots.has(oid)) continue;
+      if (this.commit(oid)) roots.add(oid);
+    }
+    return [...roots];
   }
 
   updateRef(name: string, oldOidHex: string, newOidHex: string): void {

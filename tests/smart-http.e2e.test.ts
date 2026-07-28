@@ -5,11 +5,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Server } from "bun";
 import { createFixtureRepo, type FixtureRepo } from "./fixtures/repo";
+import { createShallowFixtureRepo, type ShallowFixtureRepo } from "./fixtures/shallow-repo";
 import { createApp } from "../src/server";
 import { DEFAULT_MIME_TYPES, type SiteConfig } from "../src/config/config";
 import { parseHtpasswd } from "../src/config/htpasswd";
 
 let fixture: FixtureRepo;
+let shallowFixture: ShallowFixtureRepo;
 let scanRoot: string;
 let workRoot: string;
 let server: Server<undefined>;
@@ -47,6 +49,8 @@ beforeAll(async () => {
   workRoot = mkdtempSync(join(tmpdir(), "tsgit-smarthttp-work-"));
   await Bun.spawn(["cp", "-r", fixture.path, join(scanRoot, "project.git")]).exited;
   await Bun.spawn(["git", "init", "-q", "--bare", join(scanRoot, "empty.git")]).exited;
+  shallowFixture = await createShallowFixtureRepo();
+  await Bun.spawn(["cp", "-r", shallowFixture.path, join(scanRoot, "shallow.git")]).exited;
 
   const hash = await Bun.password.hash(PASSWORD, { algorithm: "bcrypt", cost: 4 });
   const cfg: SiteConfig = {
@@ -62,6 +66,7 @@ beforeAll(async () => {
 afterAll(() => {
   server.stop(true);
   fixture.cleanup();
+  shallowFixture?.cleanup();
   rmSync(scanRoot, { recursive: true, force: true });
   rmSync(workRoot, { recursive: true, force: true });
 });
@@ -85,6 +90,44 @@ test("git clone succeeds against an empty repo", async () => {
   const dest = join(workRoot, "clone-empty");
   const result = await git(workRoot, "clone", "-q", `${baseUrl}/empty.git`, dest);
   expect(result.code).toBe(0);
+});
+
+// A repo that is itself shallow (here: a `--depth 1` clone someone published).
+// The server has to report its boundary, or the client asks for parents that
+// were never fetched and index-pack dies with "did not receive expected object".
+test("git clone works against a shallow repo, over both protocol versions", async () => {
+  for (const version of ["2", "0"]) {
+    const dest = join(workRoot, `clone-shallow-v${version}`);
+    const result = await git(workRoot, "-c", `protocol.version=${version}`, "clone", "-q", `${baseUrl}/shallow.git`, dest);
+    expect({ version, code: result.code, stderr: result.stderr }).toMatchObject({ code: 0 });
+
+    // The clone inherits the boundary rather than believing it has everything.
+    expect((await git(dest, "rev-parse", "--is-shallow-repository")).stdout.trim()).toBe("true");
+    const log = await git(dest, "log", "--oneline");
+    expect(log.stdout.trim().split("\n").length).toBe(1);
+    expect(log.stdout).toContain(shallowFixture.tipSubject);
+    expect((await Bun.file(join(dest, ".git", "shallow")).text()).trim()).toBe(shallowFixture.boundaryOid);
+  }
+});
+
+test("a clone of the shallow repo can fetch again afterwards", async () => {
+  // The client's own repo is now shallow, which makes it refuse to talk to a
+  // server that doesn't advertise the shallow capability at all.
+  const dest = join(workRoot, "shallow-refetch");
+  expect((await git(workRoot, "clone", "-q", `${baseUrl}/shallow.git`, dest)).code).toBe(0);
+  const fetched = await git(dest, "fetch", "-q", "--verbose", `${baseUrl}/shallow.git`);
+  expect({ code: fetched.code, stderr: fetched.stderr }).toMatchObject({ code: 0 });
+  expect((await git(dest, "fsck", "--connectivity-only")).code).toBe(0);
+});
+
+test("a --depth request is refused with a clear message, not a broken pack", async () => {
+  for (const version of ["2", "0"]) {
+    const dest = join(workRoot, `clone-depth-v${version}`);
+    const result = await git(workRoot, "-c", `protocol.version=${version}`, "clone", "-q", "--depth", "1", `${baseUrl}/project.git`, dest);
+    expect(result.code).not.toBe(0);
+    expect(result.stderr).toContain("shallow");
+    expect(result.stderr.toLowerCase()).toContain("tsgit");
+  }
 });
 
 test("git push rejects without credentials", async () => {
