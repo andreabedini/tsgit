@@ -41,7 +41,6 @@ export interface SummaryProps {
 
 export function SummaryPage(props: SummaryProps) {
   const decorations = props.decorations ?? new Map<string, Reference[]>();
-  const lastCommit = props.recentCommits[0]?.author.when;
   return (
     <>
       <title>{props.name}</title>
@@ -123,21 +122,13 @@ export function SummaryPage(props: SummaryProps) {
             </div>
           ) : null}
 
-          {props.owner || lastCommit ? (
+          {props.owner ? (
             <div class="cg-infocard">
               <dl>
-                {props.owner ? (
-                  <div class="cg-inforow">
-                    <dt>owner</dt>
-                    <dd>{props.owner}</dd>
-                  </div>
-                ) : null}
-                {lastCommit ? (
-                  <div class="cg-inforow">
-                    <dt>updated</dt>
-                    <dd class="mono">{formatAge(lastCommit, props.now)}</dd>
-                  </div>
-                ) : null}
+                <div class="cg-inforow">
+                  <dt>owner</dt>
+                  <dd>{props.owner}</dd>
+                </div>
               </dl>
             </div>
           ) : null}
