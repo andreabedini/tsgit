@@ -125,4 +125,11 @@ export interface WritableRepository extends Repository {
   indexPack(data: Uint8Array): void;
   /** Builds a packfile containing everything reachable from `wants` that isn't reachable from `haves`. */
   packObjects(wants: string[], haves: string[]): Uint8Array;
+  /**
+   * True when HEAD is a symbolic ref to a branch that does not exist — a freshly
+   * initialized repo, or one whose HEAD names a branch nobody has pushed.
+   */
+  headIsUnborn(): boolean;
+  /** Points HEAD at `fullRefName` (e.g. "refs/heads/main"), which need not exist yet. */
+  setHead(fullRefName: string): void;
 }

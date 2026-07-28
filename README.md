@@ -14,6 +14,25 @@ Each repo is also a git remote: `git clone`/`fetch` need no configuration, and
 `git push` to a **bare** repo requires Basic auth (see `TSGIT_HTPASSWD_FILE`). Both wire
 protocol v0 and v2 are spoken.
 
+### Push to create
+
+With `TSGIT_PUSH_CREATE=1`, pushing to a name that isn't there yet brings the repository
+into being — no `git init --bare` on the server first, no shell account:
+
+```sh
+git remote add origin https://tsgit.example/newthing.git
+git push origin main
+```
+
+The repo is created as a bare `newthing.git` directly under `TSGIT_SCAN_PATH`, and HEAD is
+pointed at the branch you pushed. Only a push can create anything: fetching a repository
+that doesn't exist is still a 404, credentials are required before creation (with no
+`TSGIT_HTPASSWD_FILE` nothing can be created at all), and a name that isn't a plain
+single-segment directory name is refused. If the push then fails — bad pack, hook
+declined — the repository it created is removed again rather than left behind empty.
+
+Nested names (`user/project.git`) are not supported yet.
+
 A repo that is *itself* shallow (say a published `--depth 1` clone) is served
 correctly: its boundary is advertised, so clients graft it instead of asking for
 parents that were never fetched. Asking tsgit to *create* a shallow clone
@@ -73,6 +92,8 @@ All configuration comes from `TSGIT_*` environment variables:
 | `TSGIT_SUMMARY_LOG` | `10` | Recent commits on the summary page |
 | `TSGIT_LOG_PAGE_SIZE` | `50` | Commits per page on the log view |
 | `TSGIT_REPOLIST_PAGE_SIZE` | `50` | Repositories per page on the index |
+| `TSGIT_HTPASSWD_FILE` | — | htpasswd file whose users may push; without it every push is rejected |
+| `TSGIT_PUSH_CREATE` | off | `1`/`true`/`yes`/`on` lets an authenticated push create a repository that doesn't exist yet |
 
 ## Development
 

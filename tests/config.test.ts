@@ -45,3 +45,14 @@ test("loadConfig throws when the mimetype section is not a mapping", () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("loadConfig leaves push-to-create off unless it is explicitly switched on", () => {
+  const off = { TSGIT_CONFIG: "/nonexistent/tsgit.yaml" };
+  expect(loadConfig(off).TSGIT_PUSH_CREATE).toBe(false);
+  for (const value of ["0", "false", "no", "off", "", "maybe"]) {
+    expect(loadConfig({ ...off, TSGIT_PUSH_CREATE: value }).TSGIT_PUSH_CREATE).toBe(false);
+  }
+  for (const value of ["1", "true", "TRUE", "yes", "on", " true "]) {
+    expect(loadConfig({ ...off, TSGIT_PUSH_CREATE: value }).TSGIT_PUSH_CREATE).toBe(true);
+  }
+});

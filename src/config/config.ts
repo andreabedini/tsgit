@@ -28,6 +28,12 @@ function num(value: string | undefined, fallback: number): number {
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
+// Off unless explicitly switched on: a flag that lets a client create things on
+// disk shouldn't turn itself on because someone set it to "0".
+function bool(value: string | undefined): boolean {
+  return value !== undefined && /^(1|true|yes|on)$/i.test(value.trim());
+}
+
 // Built-in defaults, merged with the file's `mimetype:` section (file wins).
 // Missing file -> defaults only. A present-but-unreadable/malformed file throws
 // (config is loaded once at startup, so this fails fast).
@@ -80,6 +86,7 @@ export function loadConfig(
     TSGIT_LOG_PAGE_SIZE: num(env.TSGIT_LOG_PAGE_SIZE, 50),
     TSGIT_REPOLIST_PAGE_SIZE: num(env.TSGIT_REPOLIST_PAGE_SIZE, 50),
     TSGIT_HTPASSWD_FILE: env.TSGIT_HTPASSWD_FILE,
+    TSGIT_PUSH_CREATE: bool(env.TSGIT_PUSH_CREATE),
     mimeTypes: loadMimeTypes(env),
     pushCredentials: loadHtpasswd(env),
   };

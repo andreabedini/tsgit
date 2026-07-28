@@ -14,12 +14,15 @@ export type Env = {
     TSGIT_LOG_PAGE_SIZE: number;
     TSGIT_REPOLIST_PAGE_SIZE: number;
     TSGIT_HTPASSWD_FILE?: string;
+    TSGIT_PUSH_CREATE: boolean;
     mimeTypes: Record<string, string>;
     pushCredentials: HtpasswdEntry[];
   };
   Variables: {
     disc: DiscoveredRepo;
     repo: WritableRepository;
+    /** Set when a push is aimed at a repo that doesn't exist yet, so there is no `repo`. */
+    pushCreatePending: boolean;
     commit: Commit;
     diff: CommitDiff;
   }

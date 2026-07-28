@@ -1,7 +1,6 @@
 import type { factory } from "../../app/env";
 import { badRequest, HttpError } from "../../errors";
-import { buildAdvertisement } from "./advertise";
-import { checkBasicAuth } from "./auth";
+import { buildAdvertisement, buildEmptyAdvertisement } from "./advertise";
 import {
   buildFetchV2Response,
   buildLsRefsResponse,
@@ -17,21 +16,23 @@ import { encodeErrLine, readUntilFlush } from "./pktline";
 type App = ReturnType<typeof factory.createApp>;
 
 export function registerSmartHttpRoutes(app: App): void {
-  app.get("/:repo/info/refs", async (c) => {
+  app.get("/:repo/info/refs", (c) => {
     const service = c.req.query("service");
     if (service !== "git-upload-pack" && service !== "git-receive-pack") {
       throw badRequest(`Unsupported or missing service parameter: ${JSON.stringify(service)}`);
     }
-    if (service === "git-receive-pack") {
-      const rejection = await checkBasicAuth(c.req.header("Authorization"), c.env.pushCredentials);
-      if (rejection) return rejection;
-    }
-    const repo = c.get("repo");
     // v2 is fetch-only — push (git-receive-pack) always gets the v0/v1
     // advertisement, matching real git servers.
     const wantsV2 =
       service === "git-upload-pack" && (c.req.header("Git-Protocol") ?? "").includes("version=2");
-    const body = wantsV2 ? buildV2Advertisement() : buildAdvertisement(repo, service);
+    // A push aimed at a repo that doesn't exist yet: useRepository has
+    // authenticated it and deliberately created nothing, so answer with the
+    // advertisement an empty repo would give and let the POST do the creating.
+    const body = c.get("pushCreatePending")
+      ? buildEmptyAdvertisement(service)
+      : wantsV2
+        ? buildV2Advertisement()
+        : buildAdvertisement(c.get("repo"), service);
     return new Response(body as BodyInit, {
       headers: {
         "Content-Type": `application/x-${service}-advertisement`,
@@ -74,8 +75,8 @@ export function registerSmartHttpRoutes(app: App): void {
 
   app.post("/:repo/git-receive-pack", async (c) => {
     const repo = c.get("repo");
-    const rejection = await checkBasicAuth(c.req.header("Authorization"), c.env.pushCredentials);
-    if (rejection) return rejection;
+    // Authentication (and, for a repo that doesn't exist yet, creation) already
+    // happened in useRepository.
     if (!repo.isBare()) throw new HttpError(403, "push is only allowed to bare repositories");
 
     const body = new Uint8Array(await c.req.arrayBuffer());

@@ -4,19 +4,37 @@ import { encodePktLine, FLUSH_PKT, concatBytes } from "./pktline";
 
 const ZERO_OID = "0".repeat(40);
 
+export type SmartHttpService = "git-upload-pack" | "git-receive-pack";
+
+// `shallow` says only that we speak the shallow part of the protocol: we report
+// our own boundary (see below) and accept a client's `shallow` lines. A client
+// asking to *create* a shallow clone (`deepen`) is refused explicitly — see
+// routes.ts. Without this capability a client whose own repo is shallow refuses
+// to fetch at all, so cloning our shallow repo would be a dead end.
+function capabilitiesFor(service: SmartHttpService): string {
+  return service === "git-receive-pack"
+    ? "report-status delete-refs agent=git/tsgit"
+    : "shallow agent=git/tsgit";
+}
+
+// The advertisement for a repository with nothing in it — byte for byte what a
+// just-initialized bare repo advertises. Used to answer a push aimed at a repo
+// that does not exist yet: with push-to-create nothing is written until the pack
+// itself arrives, so at advertisement time there is no repo to open.
+export function buildEmptyAdvertisement(service: SmartHttpService): Uint8Array {
+  return concatBytes([
+    encodePktLine(`# service=${service}\n`),
+    FLUSH_PKT,
+    encodePktLine(`${ZERO_OID} capabilities^{}\0${capabilitiesFor(service)}\n`),
+    FLUSH_PKT,
+  ]);
+}
+
 export function buildAdvertisement(
   repo: Repository,
-  service: "git-upload-pack" | "git-receive-pack",
+  service: SmartHttpService,
 ): Uint8Array {
-  // `shallow` says only that we speak the shallow part of the protocol: we
-  // report our own boundary (below) and accept a client's `shallow` lines. A
-  // client asking to *create* a shallow clone (`deepen`) is refused explicitly
-  // — see routes.ts. Without this capability a client whose own repo is shallow
-  // refuses to fetch at all, so cloning our shallow repo would be a dead end.
-  const capabilities =
-    service === "git-receive-pack"
-      ? "report-status delete-refs agent=git/tsgit"
-      : "shallow agent=git/tsgit";
+  const capabilities = capabilitiesFor(service);
 
   const entries: { oid: string; name: string }[] = [];
   try {

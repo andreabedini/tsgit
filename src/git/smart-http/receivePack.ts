@@ -84,6 +84,14 @@ export async function applyReceivePack(
     }
   }
 
+  // A bare repo's HEAD is written at init time, before any branch exists, so it
+  // routinely names a branch nobody pushed — `git init --bare` says "master",
+  // the client pushes "main". Left dangling, the repo browses as empty and
+  // clones warn about a nonexistent remote HEAD, so adopt a real branch here.
+  // Every push, not just a creating one: a repo that was empty before this push
+  // has the same dangling HEAD.
+  ensureDefaultBranch(repo);
+
   // post-receive is a fire-and-forget notification: refs are already updated,
   // so its outcome can't change the response.
   if (applied.length > 0) {
@@ -102,4 +110,17 @@ export function encodeReportStatus(result: ReceiveResult): Uint8Array {
   }
   lines.push(FLUSH_PKT);
   return concatBytes(lines);
+}
+
+// Points HEAD at a branch that exists, if it doesn't already. A HEAD that
+// resolves (including a detached one, as in a jj-backed repo) is left alone.
+export function ensureDefaultBranch(repo: WritableRepository): void {
+  if (!repo.headIsUnborn()) return;
+  const branches = repo.references().filter((r) => r.kind === "branch");
+  if (branches.length === 0) return;
+  const chosen =
+    branches.find((b) => b.name === "main") ??
+    branches.find((b) => b.name === "master") ??
+    branches[0]!;
+  repo.setHead(chosen.fullName);
 }

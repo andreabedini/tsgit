@@ -24,7 +24,7 @@ beforeAll(async () => {
   app = createApp();
   cfg = {
     TSGIT_SCAN_PATH: root, TSGIT_SUMMARY_BRANCHES: 10, TSGIT_SUMMARY_TAGS: 10,
-    TSGIT_SUMMARY_LOG: 10, TSGIT_LOG_PAGE_SIZE: 2, TSGIT_REPOLIST_PAGE_SIZE: 50,
+    TSGIT_SUMMARY_LOG: 10, TSGIT_LOG_PAGE_SIZE: 2, TSGIT_REPOLIST_PAGE_SIZE: 50, TSGIT_PUSH_CREATE: false,
     mimeTypes: DEFAULT_MIME_TYPES, pushCredentials: [],
   };
   const repo = openRepository(join(root, "project.git"));

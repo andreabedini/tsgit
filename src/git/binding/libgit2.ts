@@ -12,6 +12,8 @@ export function toPtr(n: number): Pointer { return n as unknown as Pointer; }
 const SYMBOLS = {
   git_libgit2_init: { args: [], returns: FFIType.i32 },
   git_repository_open: { args: [FFIType.ptr, FFIType.cstring], returns: FFIType.i32 },
+  git_repository_init: { args: [FFIType.ptr, FFIType.cstring, FFIType.u32], returns: FFIType.i32 },
+  git_repository_set_head: { args: [FFIType.ptr, FFIType.cstring], returns: FFIType.i32 },
   git_repository_free: { args: [FFIType.ptr], returns: FFIType.void },
   git_repository_head: { args: [FFIType.ptr, FFIType.ptr], returns: FFIType.i32 },
   git_repository_head_unborn: { args: [FFIType.ptr], returns: FFIType.i32 },

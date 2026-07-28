@@ -110,6 +110,16 @@ class Repo implements WritableRepository {
     return lib.git_repository_is_bare(toPtr(this.handle)) === 1;
   }
 
+  headIsUnborn(): boolean {
+    const rc = lib.git_repository_head_unborn(toPtr(this.handle));
+    check(rc);
+    return rc === 1;
+  }
+
+  setHead(fullRefName: string): void {
+    check(lib.git_repository_set_head(toPtr(this.handle), cstr(fullRefName)));
+  }
+
   // libgit2 exposes only a yes/no `git_repository_is_shallow`, so read the file
   // itself: one oid per line, the commits whose parents were never fetched.
   // Boundary commits that are no longer in the odb are dropped — advertising one
@@ -807,4 +817,16 @@ export function openRepository(path: string): WritableRepository {
   const slot = ptrSlot();
   check(lib.git_repository_open(toPtr(ptr(slot)), cstr(path)));
   return new Repo(path, readPtr(slot));
+}
+
+// Creates a bare repository at `path`, creating the directory (and any missing
+// parents) if needed. The handle libgit2 hands back is freed immediately: the
+// caller reopens through openRepository() like any other repo, so a
+// just-created repo takes exactly the same path through the app as an existing
+// one.
+export function initBareRepository(path: string): void {
+  ensureInit();
+  const slot = ptrSlot();
+  check(lib.git_repository_init(toPtr(ptr(slot)), cstr(path), 1 /* is_bare */));
+  lib.git_repository_free(toPtr(readPtr(slot)));
 }

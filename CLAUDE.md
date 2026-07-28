@@ -25,7 +25,10 @@ is a Bun server object (`{ port, fetch }`) that calls `app.fetch(req, loadConfig
   Bindings shape. Config is **passed as `c.env`**, not imported as a singleton.
 - **`src/middlewares.ts`** — `useRepository` resolves `/:repo/` to an open libgit2 handle
   on the context and **frees it after the handler runs** (handlers never open/free repos).
-  `buildDecorationMap` groups refs by commit for log decorations.
+  It also owns push authentication and push-to-create: a receive-pack request authenticates
+  before the repo is even looked up, a missing repo is created (`TSGIT_PUSH_CREATE`) only on
+  the POST that carries the pack, and a repo created for a push that ends with no refs is
+  removed again in the `finally`.
 - **`src/git/`** — the git facade, the app's seam over libgit2:
   - `facade.ts` — pure TS interfaces (`Repository`, `Commit`, `Reference`, `LogPage`).
     Everything outside `binding/` depends only on these types.
@@ -46,7 +49,16 @@ is a Bun server object (`{ port, fetch }`) that calls `app.fetch(req, loadConfig
     (`locateRepo` prefers a `.git`, then a bare dir, then `resolveJjGitDir`; the repo is
     always named after the scanned directory, never the resolved git dir) and reads
     `description`.
-  - `index.ts` — re-exports the facade and `openRepository`, plus `findRepo`.
+  - `reponame.ts` — `sanitizeRepoName`/`validateRepoName`/`repoDir`. Push-to-create is the
+    only place a client-supplied string becomes a filesystem path, so the name must be a
+    plain single segment and `repoDir` re-checks containment in the scan path.
+  - `index.ts` — re-exports the facade and `openRepository`, plus `findRepo`/`lookupRepo`
+    and `createBareRepo`/`removeBareRepo` (the push-to-create pair; `createBareRepo` refuses
+    a non-empty directory so a rollback can only ever delete what it made).
+  - `smart-http/` — the git wire protocol. `service.ts`'s `pushIntent` is what tells
+    `useRepository` a request is a push; `receivePack.ts` ends every push with
+    `ensureDefaultBranch`, which adopts a real branch when HEAD names one that doesn't
+    exist (a just-initialized bare repo says `master`, the client pushes `main`).
 - **`src/views/default/`** — Hono JSX pages (`RepolistPage`, `SummaryPage`, `LogPage`,
   `ErrorPage`) plus `renderer.tsx`: a root `jsxRenderer` document layout (`renderer`) and
   a nested `repoLayout` that prepends the per-repo menu, reading state via
@@ -83,6 +95,8 @@ is a Bun server object (`{ port, fetch }`) that calls `app.fetch(req, loadConfig
 | `TSGIT_SUMMARY_LOG` | `10` | recent commits on the summary page |
 | `TSGIT_LOG_PAGE_SIZE` | `50` | commits per log page |
 | `TSGIT_REPOLIST_PAGE_SIZE` | `50` | repositories per index page |
+| `TSGIT_HTPASSWD_FILE` | — | users allowed to push; absent means no push can authenticate |
+| `TSGIT_PUSH_CREATE` | off | let an authenticated push create a missing repo (`1`/`true`/`yes`/`on`) |
 
 ## Design docs
 
