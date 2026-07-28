@@ -65,6 +65,11 @@ test("the summary page shows a clone command", async () => {
     TSGIT_CLONE_URL_BASE: "https://git.example.com/",
   });
   expect(await configured.text()).toContain("git clone https://git.example.com/project");
+
+  // Exactly one clone box on the page, and none in the per-repo header band
+  // (which used to render a second one of its own).
+  expect(html.match(/class="cg-clone"/g)?.length).toBe(1);
+  expect(await (await req("/project/log/")).text()).not.toContain("cg-clone");
 });
 
 test("GET /project/log/ paginates", async () => {

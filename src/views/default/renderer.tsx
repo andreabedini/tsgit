@@ -83,9 +83,6 @@ function RepoHeader() {
         ? "log"
         : "summary"; // summary, commit and diff all sit under the summary tab
 
-  const base = c.env?.TSGIT_CLONE_URL_BASE?.replace(/\/$/, "");
-  const cloneUrl = base ? `${base}/${name}.git` : undefined;
-
   const tab = (page: "summary" | "log" | "tree", href: string) => (
     <a class={`cg-tab${active === page ? " active" : ""}`} href={href}>
       {page}
@@ -103,23 +100,6 @@ function RepoHeader() {
           </div>
           {disc.description ? <p class="desc">{disc.description}</p> : null}
         </div>
-        {cloneUrl ? (
-          <div class="cg-clone">
-            <span class="label">git clone</span>
-            <span class="url">{cloneUrl}</span>
-            <button
-              type="button"
-              class="copy"
-              title="Copy clone URL"
-              {...{ onclick: `navigator.clipboard&&navigator.clipboard.writeText(${JSON.stringify(cloneUrl)})` }}
-            >
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="9" y="9" width="11" height="11" rx="2"></rect>
-                <path d="M5 15V5a2 2 0 0 1 2-2h10"></path>
-              </svg>
-            </button>
-          </div>
-        ) : null}
       </div>
       <nav class="cg-tabs">
         {tab("summary", `/${name}/`)}
