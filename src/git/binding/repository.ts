@@ -51,6 +51,23 @@ class Repo implements WritableRepository {
   constructor(readonly path: string, private handle: number) {}
 
   headRef(): string {
+    // A freshly initialized repo with no commits has an "unborn" HEAD: it's a
+    // symbolic ref to a branch that doesn't exist yet, so git_repository_head
+    // fails. Report the branch HEAD points to anyway (mirrors `git status`'s
+    // "On branch main, No commits yet") instead of resolving it to an object.
+    const unbornRc = lib.git_repository_head_unborn(toPtr(this.handle));
+    check(unbornRc);
+    if (unbornRc === 1) {
+      const slot = ptrSlot();
+      check(lib.git_reference_lookup(toPtr(ptr(slot)), toPtr(this.handle), cstr("HEAD")));
+      const refPtr = readPtr(slot);
+      try {
+        const target = String(lib.git_reference_symbolic_target(toPtr(refPtr)));
+        return target.replace(/^refs\/heads\//, "");
+      } finally {
+        lib.git_reference_free(toPtr(refPtr));
+      }
+    }
     const slot = ptrSlot();
     check(lib.git_repository_head(toPtr(ptr(slot)), toPtr(this.handle)));
     const refPtr = readPtr(slot);
@@ -186,11 +203,11 @@ class Repo implements WritableRepository {
     const walk = readPtr(walkSlot);
     try {
       check(lib.git_revwalk_sorting(toPtr(walk), GIT_SORT_TOPOLOGICAL | GIT_SORT_TIME));
-      if (opts.ref) {
-        this.pushRef(walk, opts.ref);
-      } else {
-        check(lib.git_revwalk_push_head(toPtr(walk)));
-      }
+      // A repo with no commits yet (unborn HEAD, or an explicit ref that
+      // doesn't resolve to anything) has nothing to walk — render as empty
+      // rather than surfacing the resolution failure as a 500.
+      const pushed = opts.ref ? this.pushRef(walk, opts.ref) : this.pushHead(walk);
+      if (!pushed) return { commits: [], hasMore: false };
       const commits: Commit[] = [];
       const oid = oidSlot();
       let index = 0;
@@ -283,12 +300,26 @@ class Repo implements WritableRepository {
     }
   }
 
+  // Push the current HEAD commit onto the walk. Returns false (instead of
+  // throwing) when HEAD is unborn, i.e. the repo has no commits yet.
+  private pushHead(walk: number): boolean {
+    const unbornRc = lib.git_repository_head_unborn(toPtr(this.handle));
+    check(unbornRc);
+    if (unbornRc === 1) return false;
+    check(lib.git_revwalk_push_head(toPtr(walk)));
+    return true;
+  }
+
   // Resolve a ref spec (branch/tag shorthand, full ref name, or oid) to a commit
   // and push it onto the walk. revparse + peel handles annotated tags correctly
-  // (peeling the tag object down to its commit).
-  private pushRef(walk: number, ref: string): void {
+  // (peeling the tag object down to its commit). Returns false (instead of
+  // throwing) when the spec doesn't resolve to anything, e.g. `headRef()` on
+  // an empty repo reporting a branch name that has no commits yet.
+  private pushRef(walk: number, ref: string): boolean {
     const objSlot = ptrSlot();
-    check(lib.git_revparse_single(toPtr(ptr(objSlot)), toPtr(this.handle), cstr(ref)));
+    const rc = lib.git_revparse_single(toPtr(ptr(objSlot)), toPtr(this.handle), cstr(ref));
+    if (rc === -3 /* GIT_ENOTFOUND */) return false;
+    check(rc);
     const obj = readPtr(objSlot);
     try {
       const commitSlot = ptrSlot();
@@ -303,6 +334,7 @@ class Repo implements WritableRepository {
     } finally {
       lib.git_object_free(toPtr(obj));
     }
+    return true;
   }
 
   private readCommit(oidBytes: Uint8Array): Commit {
