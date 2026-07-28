@@ -83,7 +83,7 @@ test("applyReceivePack indexes the pack and creates the requested ref", async ()
 
   const target = openRepository(targetPath);
   try {
-    const result = applyReceivePack(target, [{ oldOid: ZERO, newOid: headOid, name: "refs/heads/main" }], pack);
+    const result = await applyReceivePack(target, [{ oldOid: ZERO, newOid: headOid, name: "refs/heads/main" }], pack);
     expect(result.unpackOk).toBe(true);
     expect(result.refResults).toEqual([{ name: "refs/heads/main", ok: true }]);
     expect(target.commit("refs/heads/main")?.oid).toBe(headOid);
@@ -107,15 +107,124 @@ test("applyReceivePack succeeds for a delete-only push with an empty pack", asyn
   const target = openRepository(targetPath);
   try {
     // First create the branch (needs the real pack)...
-    const created = applyReceivePack(target, [{ oldOid: "0".repeat(40), newOid: headOid, name: "refs/heads/main" }], pack);
+    const created = await applyReceivePack(target, [{ oldOid: "0".repeat(40), newOid: headOid, name: "refs/heads/main" }], pack);
     expect(created.unpackOk).toBe(true);
     expect(target.commit("refs/heads/main")?.oid).toBe(headOid);
 
     // ...then delete it with an EMPTY pack (as a real git delete-only push sends).
-    const deleted = applyReceivePack(target, [{ oldOid: headOid, newOid: "0".repeat(40), name: "refs/heads/main" }], new Uint8Array(0));
+    const deleted = await applyReceivePack(target, [{ oldOid: headOid, newOid: "0".repeat(40), name: "refs/heads/main" }], new Uint8Array(0));
     expect(deleted.unpackOk).toBe(true);
     expect(deleted.refResults).toEqual([{ name: "refs/heads/main", ok: true }]);
     expect(target.commit("refs/heads/main")).toBeNull();
+  } finally {
+    target.free();
+  }
+});
+
+async function writeHook(repoPath: string, name: string, script: string): Promise<void> {
+  const path = join(repoPath, "hooks", name);
+  await Bun.write(path, `#!/bin/sh\n${script}\n`);
+  await Bun.spawn(["chmod", "+x", path]).exited;
+}
+
+test("applyReceivePack: a pre-receive hook that exits non-zero rejects the whole push, untouched", async () => {
+  const root = mkdtempSync(join(tmpdir(), "tsgit-applyreceive-prereceive-"));
+  roots.push(root);
+  const targetPath = join(root, "target.git");
+  await Bun.spawn(["git", "init", "-q", "--bare", targetPath]).exited;
+  await writeHook(targetPath, "pre-receive", 'echo "no pushes today" >&2\nexit 1');
+
+  const headOid = (() => {
+    const r = openRepository(fixture.path);
+    try { return r.commit(r.headRef())!.oid; } finally { r.free(); }
+  })();
+  const pack = await buildPack(fixture.path);
+
+  const target = openRepository(targetPath);
+  try {
+    const result = await applyReceivePack(target, [{ oldOid: ZERO, newOid: headOid, name: "refs/heads/main" }], pack);
+    expect(result.unpackOk).toBe(true); // pack still indexes; only the ref update is blocked
+    expect(result.refResults).toEqual([{ name: "refs/heads/main", ok: false, reason: "no pushes today" }]);
+    expect(target.commit("refs/heads/main")).toBeNull();
+  } finally {
+    target.free();
+  }
+});
+
+test("applyReceivePack: an update hook rejects only the ref it names, others still apply", async () => {
+  const root = mkdtempSync(join(tmpdir(), "tsgit-applyreceive-update-"));
+  roots.push(root);
+  const targetPath = join(root, "target.git");
+  await Bun.spawn(["git", "init", "-q", "--bare", targetPath]).exited;
+  // update gets (refname, oldrev, newrev) as $1 $2 $3 — reject only "blocked".
+  await writeHook(targetPath, "update", 'if [ "$1" = "refs/heads/blocked" ]; then echo "branch is locked" >&2; exit 1; fi\nexit 0');
+
+  const headOid = (() => {
+    const r = openRepository(fixture.path);
+    try { return r.commit(r.headRef())!.oid; } finally { r.free(); }
+  })();
+  const pack = await buildPack(fixture.path);
+
+  const target = openRepository(targetPath);
+  try {
+    const result = await applyReceivePack(target, [
+      { oldOid: ZERO, newOid: headOid, name: "refs/heads/allowed" },
+      { oldOid: ZERO, newOid: headOid, name: "refs/heads/blocked" },
+    ], pack);
+    expect(result.refResults).toEqual([
+      { name: "refs/heads/allowed", ok: true },
+      { name: "refs/heads/blocked", ok: false, reason: "branch is locked" },
+    ]);
+    expect(target.commit("refs/heads/allowed")?.oid).toBe(headOid);
+    expect(target.commit("refs/heads/blocked")).toBeNull();
+  } finally {
+    target.free();
+  }
+});
+
+test("applyReceivePack runs post-receive after refs are updated, with the applied commands on stdin", async () => {
+  const root = mkdtempSync(join(tmpdir(), "tsgit-applyreceive-postreceive-"));
+  roots.push(root);
+  const targetPath = join(root, "target.git");
+  await Bun.spawn(["git", "init", "-q", "--bare", targetPath]).exited;
+  const marker = join(root, "post-receive-ran.txt");
+  await writeHook(targetPath, "post-receive", `cat > ${marker}`);
+
+  const headOid = (() => {
+    const r = openRepository(fixture.path);
+    try { return r.commit(r.headRef())!.oid; } finally { r.free(); }
+  })();
+  const pack = await buildPack(fixture.path);
+
+  const target = openRepository(targetPath);
+  try {
+    const result = await applyReceivePack(target, [{ oldOid: ZERO, newOid: headOid, name: "refs/heads/main" }], pack);
+    expect(result.refResults).toEqual([{ name: "refs/heads/main", ok: true }]);
+    const markerContent = await Bun.file(marker).text();
+    expect(markerContent).toBe(`${ZERO} ${headOid} refs/heads/main\n`);
+  } finally {
+    target.free();
+  }
+});
+
+test("applyReceivePack ignores a hooks/pre-receive file that isn't executable", async () => {
+  const root = mkdtempSync(join(tmpdir(), "tsgit-applyreceive-nonexec-"));
+  roots.push(root);
+  const targetPath = join(root, "target.git");
+  await Bun.spawn(["git", "init", "-q", "--bare", targetPath]).exited;
+  await Bun.write(join(targetPath, "hooks", "pre-receive"), "#!/bin/sh\nexit 1\n"); // not chmod +x
+
+  const headOid = (() => {
+    const r = openRepository(fixture.path);
+    try { return r.commit(r.headRef())!.oid; } finally { r.free(); }
+  })();
+  const pack = await buildPack(fixture.path);
+
+  const target = openRepository(targetPath);
+  try {
+    const result = await applyReceivePack(target, [{ oldOid: ZERO, newOid: headOid, name: "refs/heads/main" }], pack);
+    expect(result.refResults).toEqual([{ name: "refs/heads/main", ok: true }]);
+    expect(target.commit("refs/heads/main")?.oid).toBe(headOid);
   } finally {
     target.free();
   }
@@ -136,7 +245,7 @@ test("applyReceivePack reports a CAS failure without touching the ref", async ()
   const target = openRepository(targetPath);
   try {
     const badOldOid = "1".repeat(40);
-    const result = applyReceivePack(target, [{ oldOid: badOldOid, newOid: headOid, name: "refs/heads/main" }], pack);
+    const result = await applyReceivePack(target, [{ oldOid: badOldOid, newOid: headOid, name: "refs/heads/main" }], pack);
     expect(result.unpackOk).toBe(true); // the pack itself indexed fine
     expect(result.refResults[0].ok).toBe(false);
     expect(target.commit("refs/heads/main")).toBeNull();

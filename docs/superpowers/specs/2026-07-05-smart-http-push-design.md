@@ -30,9 +30,23 @@ In scope:
 - Ref create/update/delete via the standard `<old-oid> <new-oid> <ref>`
   command triplet (all-zero old/new oid signals create/delete).
 
+- `pre-receive` / `update` / `post-receive` hooks (`src/git/smart-http/hooks.ts`),
+  run the way real git runs them: `<repo>/hooks/<name>`, skipped silently if
+  missing or not executable (matches git). `pre-receive` and `post-receive`
+  get every command as `<old-oid> <new-oid> <ref>\n` lines on stdin; `update`
+  runs once per ref with `(name, old, new)` as argv. A non-zero `pre-receive`
+  rejects the whole push before any ref is touched; a non-zero `update`
+  rejects only that ref, letting the rest of the push proceed; `post-receive`
+  is fire-and-forget (its outcome can't undo already-applied ref updates).
+  Hooks are plain OS subprocesses (this is what a git hook *is* — an arbitrary
+  executable file an admin places in the repo), not `git` subprocesses, so
+  this doesn't reopen the "no `git` subprocess" rule. A hook's combined
+  stdout+stderr becomes the `ng <ref> <reason>` text in `report-status` when
+  it rejects — real side-band relay of hook *progress* output during the
+  push isn't implemented (see below).
+
 Out of scope (explicitly deferred):
 
-- pre-receive / update / post-receive hooks.
 - Protocol v2 (see Roadmap — planned as a follow-up, not abandoned).
 - Shallow clone, partial clone (filters), `git archive` (`upload-archive`).
 - SSH transport — HTTP(S) only.
@@ -92,6 +106,16 @@ not a page:
 - `auth.ts` — Basic Auth Hono middleware, checked against a parsed htpasswd
   file (bcrypt via `Bun.password.verify`). Applied only to the two
   `git-receive-pack` routes.
+- `hooks.ts` — `runHook(repoPath, name, {args, stdin})`: locates and executes
+  `<repo>/hooks/<name>`, feeding stdin/argv per hook and returning
+  `{ran, ok, output}`. Also `encodeHookStdin`, shared by `pre-receive` and
+  `post-receive`. Spawned detached (own process group) so a timeout can kill
+  a hook *and* any children it forked (e.g. a trailing shell command) —
+  killing just the direct child leaves grandchildren holding the stdout/
+  stderr pipes open, hanging the read.
+- `protocolV2.ts` — protocol v2 capability advertisement and command dispatch
+  (`ls-refs`, `fetch`), built on the same `references()`/`headRef()`/
+  `commit()`/`packObjects()` calls the v0 code above already uses.
 
 ## Facade/binding additions
 
@@ -139,7 +163,14 @@ POST git-receive-pack
   → auth.ts (Basic Auth) → useRepository → reject if !repo.isBare()
   → receivePack.ts parses command list + pack body
   → Repo.indexPack(packBytes)
-  → for each command: Repo.updateRef(name, old, new) → collect ok/ng
+  → hooks.runHook(repo.path, "pre-receive", {stdin: all commands})
+      → non-zero: every command ng with the hook's output, stop here
+  → for each command:
+      hooks.runHook(repo.path, "update", {args: [name, old, new]})
+        → non-zero: this command ng with the hook's output, skip its updateRef
+        → zero/no hook: Repo.updateRef(name, old, new) → collect ok/ng
+  → hooks.runHook(repo.path, "post-receive", {stdin: applied commands})
+      (fire-and-forget — result doesn't affect the response)
   → report-status pkt-line response
 ```
 
@@ -153,6 +184,13 @@ POST git-receive-pack
   the same push still apply.
 - Pack indexing failure (corrupt pack) → `unpack <reason>` in `report-status`,
   no refs updated.
+- `pre-receive`/`update` hook rejection (non-zero exit) → `ng <ref> <reason>`
+  in `report-status`, `<reason>` being the hook's own stdout+stderr (falling
+  back to a generic "... hook declined" if the hook wrote nothing). A hook
+  file present but not executable is treated as absent (silent skip, matches
+  git); one that's executable but fails to exec (bad interpreter, etc.) is
+  treated as a rejection, not a skip. A hook is killed (and its whole process
+  group, in case it forked children) after 30s.
 
 ## Testing
 
@@ -167,5 +205,13 @@ POST git-receive-pack
   tooling and doesn't touch the app's own "no git subprocess" runtime rule.
   Covers: clone from empty and non-empty repos, push a new branch, push a
   fast-forward update, push rejected (non-bare target, no auth, bad
-  credentials, non-fast-forward without force).
+  credentials, non-fast-forward without force), protocol v2 clone/fetch/
+  ls-remote/push, and hooks — a rejecting `pre-receive` (message visible in
+  the client's stderr), an `update` hook rejecting one ref while others in
+  the same push still land, and a `post-receive` side effect after a
+  successful push.
+- `tests/git/smart-http/hooks.test.ts` — `runHook` in isolation: missing
+  hook, present-but-non-executable hook, argv/stdin passed through, `GIT_DIR`/
+  cwd set correctly, exit-code-to-`ok` mapping, and the timeout-kills-the-
+  process-group behavior.
 </content>

@@ -231,3 +231,63 @@ test("git push rejected to a non-bare repository is reported to the client", asy
   const result = await git(dest, "push", authedUrl("nonbare.git"), "HEAD:refs/heads/whatever");
   expect(result.code).not.toBe(0);
 });
+
+async function writeHook(repoPath: string, name: string, script: string): Promise<void> {
+  const path = join(repoPath, "hooks", name);
+  await Bun.write(path, `#!/bin/sh\n${script}\n`);
+  await Bun.spawn(["chmod", "+x", path]).exited;
+}
+
+test("a pre-receive hook rejecting the push surfaces its message to the git client", async () => {
+  const target = join(scanRoot, "hook-prereceive.git");
+  await Bun.spawn(["cp", "-r", fixture.path, target]).exited;
+  await writeHook(target, "pre-receive", 'echo "no direct pushes to this mirror" >&2\nexit 1');
+
+  const dest = join(workRoot, "push-prereceive");
+  await git(workRoot, "clone", "-q", `${baseUrl}/hook-prereceive.git`, dest);
+  await Bun.write(join(dest, "blocked.txt"), "hello\n");
+  await git(dest, "add", "blocked.txt");
+  await git(dest, "commit", "-q", "-m", "add blocked.txt");
+  const result = await git(dest, "push", authedUrl("hook-prereceive.git"), "HEAD:refs/heads/main");
+  expect(result.code).not.toBe(0);
+  expect(result.stderr).toContain("no direct pushes to this mirror");
+});
+
+test("an update hook rejects only the ref it names; other refs in the same push still land", async () => {
+  const target = join(scanRoot, "hook-update.git");
+  await Bun.spawn(["cp", "-r", fixture.path, target]).exited;
+  await writeHook(target, "update", 'if [ "$1" = "refs/heads/locked" ]; then echo "locked branch" >&2; exit 1; fi\nexit 0');
+
+  const dest = join(workRoot, "push-update-hook");
+  await git(workRoot, "clone", "-q", `${baseUrl}/hook-update.git`, dest);
+  await git(dest, "branch", "locked");
+  await git(dest, "branch", "open");
+
+  const result = await git(
+    dest, "push", authedUrl("hook-update.git"), "refs/heads/locked:refs/heads/locked", "refs/heads/open:refs/heads/open",
+  );
+  expect(result.code).not.toBe(0); // git exits non-zero when any ref in the push is rejected
+  expect(result.stderr).toContain("locked branch");
+
+  const branches = await git(target, "branch");
+  expect(branches.stdout).toContain("open");
+  expect(branches.stdout).not.toContain("locked");
+});
+
+test("a post-receive hook runs after a successful push", async () => {
+  const target = join(scanRoot, "hook-postreceive.git");
+  await Bun.spawn(["cp", "-r", fixture.path, target]).exited;
+  const marker = join(scanRoot, "post-receive-marker.txt");
+  await writeHook(target, "post-receive", `cat > ${marker}`);
+
+  const dest = join(workRoot, "push-postreceive");
+  await git(workRoot, "clone", "-q", `${baseUrl}/hook-postreceive.git`, dest);
+  await Bun.write(join(dest, "notified.txt"), "hello\n");
+  await git(dest, "add", "notified.txt");
+  await git(dest, "commit", "-q", "-m", "add notified.txt");
+  const result = await git(dest, "push", authedUrl("hook-postreceive.git"), "HEAD:refs/heads/main");
+  expect(result.code).toBe(0);
+
+  const markerContent = await Bun.file(marker).text();
+  expect(markerContent).toContain("refs/heads/main");
+});

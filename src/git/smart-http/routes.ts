@@ -74,7 +74,7 @@ export function registerSmartHttpRoutes(app: App): void {
     const { lines, next } = readUntilFlush(body, 0);
     const { commands } = parseReceiveCommands(lines);
     const packBytes = body.subarray(next);
-    const result = applyReceivePack(repo, commands, packBytes);
+    const result = await applyReceivePack(repo, commands, packBytes);
     return new Response(encodeReportStatus(result) as BodyInit, {
       headers: { "Content-Type": "application/x-git-receive-pack-result" },
     });

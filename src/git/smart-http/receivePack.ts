@@ -1,4 +1,5 @@
 import type { WritableRepository } from "../facade";
+import { encodeHookStdin, runHook } from "./hooks";
 import { encodePktLine, FLUSH_PKT, concatBytes } from "./pktline";
 
 export interface ReceiveCommand {
@@ -37,11 +38,11 @@ export interface ReceiveResult {
   refResults: { name: string; ok: boolean; reason?: string }[];
 }
 
-export function applyReceivePack(
+export async function applyReceivePack(
   repo: WritableRepository,
   commands: ReceiveCommand[],
   packBytes: Uint8Array,
-): ReceiveResult {
+): Promise<ReceiveResult> {
   if (packBytes.length > 0) {
     try {
       repo.indexPack(packBytes);
@@ -54,14 +55,41 @@ export function applyReceivePack(
     }
   }
 
-  const refResults = commands.map((cmd) => {
+  if (commands.length === 0) return { unpackOk: true, refResults: [] };
+
+  // pre-receive sees the whole batch and can reject it outright, before any
+  // ref is touched — same all-or-nothing semantics as real git.
+  const preReceive = await runHook(repo.path, "pre-receive", { stdin: encodeHookStdin(commands) });
+  if (!preReceive.ok) {
+    const reason = preReceive.output || "pre-receive hook declined";
+    return { unpackOk: true, refResults: commands.map((c) => ({ name: c.name, ok: false, reason })) };
+  }
+
+  const applied: ReceiveCommand[] = [];
+  const refResults: ReceiveResult["refResults"] = [];
+  for (const cmd of commands) {
+    // update runs per ref and can reject just that one, letting the rest of
+    // the push proceed.
+    const update = await runHook(repo.path, "update", { args: [cmd.name, cmd.oldOid, cmd.newOid] });
+    if (!update.ok) {
+      refResults.push({ name: cmd.name, ok: false, reason: update.output || "update hook declined" });
+      continue;
+    }
     try {
       repo.updateRef(cmd.name, cmd.oldOid, cmd.newOid);
-      return { name: cmd.name, ok: true };
+      refResults.push({ name: cmd.name, ok: true });
+      applied.push(cmd);
     } catch (err) {
-      return { name: cmd.name, ok: false, reason: err instanceof Error ? err.message : "failed to update ref" };
+      refResults.push({ name: cmd.name, ok: false, reason: err instanceof Error ? err.message : "failed to update ref" });
     }
-  });
+  }
+
+  // post-receive is a fire-and-forget notification: refs are already updated,
+  // so its outcome can't change the response.
+  if (applied.length > 0) {
+    await runHook(repo.path, "post-receive", { stdin: encodeHookStdin(applied) });
+  }
+
   return { unpackOk: true, refResults };
 }
 
