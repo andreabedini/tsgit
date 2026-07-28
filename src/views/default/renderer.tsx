@@ -22,6 +22,7 @@ export const renderer = jsxRenderer(({ children }) => {
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="stylesheet" href="/tsgit.css" />
+        <script src="/app.js" defer></script>
       </head>
       <body>
         <div class="cg-shell">

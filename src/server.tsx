@@ -30,6 +30,7 @@ export function createApp() {
   // `/healthz` or `/tsgit.css` never match the `/:repo` redirect.
   app.get("/healthz", (c) => c.text("ok"));
   app.get("/tsgit.css", serveStatic({ path: "./src/public/tsgit.css" }));
+  app.get("/app.js", serveStatic({ path: "./src/public/app.js" }));
 
   app.get("/", (c) => {
     // Optional `?q=` filters the index by repo name or description.
