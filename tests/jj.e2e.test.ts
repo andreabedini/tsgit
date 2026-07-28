@@ -48,6 +48,12 @@ test("commit page reached by change id shows the full change id", async () => {
   expect(html).toContain(fixture.changeIds[1]!);
 });
 
+test("a jj repo also offers `jj git clone`", async () => {
+  const html = await (await app.request("http://tsgit.test/project/", undefined, cfg)).text();
+  expect(html).toContain("git clone http://tsgit.test/project");
+  expect(html).toContain("jj git clone http://tsgit.test/project");
+});
+
 test("an unknown change id 404s", async () => {
   const res = await req("/project/commit/kkkkkkkk/");
   expect(res.status).toBe(404);

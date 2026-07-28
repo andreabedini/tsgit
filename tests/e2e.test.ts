@@ -53,6 +53,20 @@ test("GET /project/ shows refs and about", async () => {
   expect(html).toContain("shiki"); // README highlighted like the blob view
 });
 
+test("the summary page shows a clone command", async () => {
+  // No TSGIT_CLONE_URL_BASE configured: the URL comes from the request itself.
+  const html = await (await app.request("http://tsgit.test/project/", undefined, cfg)).text();
+  expect(html).toContain("git clone http://tsgit.test/project");
+  expect(html).not.toContain("jj git clone"); // plain git fixture
+
+  // …and the configured public base wins when there is one, trailing slash or not.
+  const configured = await app.request("http://tsgit.test/project/", undefined, {
+    ...cfg,
+    TSGIT_CLONE_URL_BASE: "https://git.example.com/",
+  });
+  expect(await configured.text()).toContain("git clone https://git.example.com/project");
+});
+
 test("GET /project/log/ paginates", async () => {
   const html = await (await req("/project/log/")).text();
   expect(html).toContain("Add b.txt");

@@ -1,3 +1,18 @@
+// Copy buttons (clone commands on the summary page). Delegated from the
+// document so it works regardless of which page rendered them, and the button
+// briefly marks itself as copied for feedback.
+document.addEventListener("click", async (event) => {
+  const button = event.target.closest?.("[data-copy]");
+  if (!button) return;
+  try {
+    await navigator.clipboard.writeText(button.dataset.copy);
+  } catch {
+    return; // no clipboard permission (or no HTTPS): leave the text selectable
+  }
+  button.dataset.copied = "";
+  setTimeout(() => delete button.dataset.copied, 1200);
+});
+
 // Progressive enhancement for the repo index: filters cards as you type
 // instead of waiting for the search form's full-page GET. No-op on any
 // page that doesn't render the repo grid (e.g. mid-repo pages).

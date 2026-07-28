@@ -93,11 +93,17 @@ export function createApp() {
       ? await highlightBlob(new TextDecoder().decode(readme), "README.md", readme.length)
       : undefined;
     const decorations = repo.decorations();
+    // Prefer the configured public base; fall back to the host this page was
+    // served from, which is right behind a reverse proxy too and means the
+    // clone command is always shown rather than silently missing.
+    const cloneBase = (c.env.TSGIT_CLONE_URL_BASE ?? new URL(c.req.url).origin).replace(/\/+$/, "");
 
     return c.render(
       <SummaryPage
         name={disc.name}
         description={disc.description}
+        cloneUrl={`${cloneBase}/${encodeURIComponent(disc.name)}`}
+        jj={recentCommits.some((commit) => commit.changeId !== null)}
         branches={branches.slice(0, c.env.TSGIT_SUMMARY_BRANCHES)}
         tags={tags.slice(0, c.env.TSGIT_SUMMARY_TAGS)}
         recentCommits={recentCommits}

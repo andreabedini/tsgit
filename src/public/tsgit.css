@@ -513,6 +513,43 @@ a.cg-changeid:hover { color: var(--accent-hover); }
 .cg-refrow .label .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cg-refrow svg { flex: none; }
 
+/* Clone commands (summary rail). Each row scrolls on its own so a long URL
+   never widens the rail or the page. */
+.cg-clone { display: flex; flex-direction: column; gap: var(--space-2); }
+.cg-clone-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--surface-inset);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0.4em 0.5em 0.4em 0.6em;
+}
+.cg-clone-row code {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  white-space: pre;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  scrollbar-width: none;
+}
+.cg-clone-row code::-webkit-scrollbar { display: none; }
+.cg-copy {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25em;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: none;
+  color: var(--text-faint);
+  cursor: pointer;
+}
+.cg-copy:hover { color: var(--accent-hover); background: var(--accent-ghost); }
+.cg-copy[data-copied] { color: var(--success); }
+
 .cg-infocard { background: var(--surface-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: var(--space-4) var(--space-5); }
 .cg-infocard dl { display: flex; flex-direction: column; gap: 0.65em; margin: 0; font-size: var(--text-sm); }
 .cg-inforow { display: flex; justify-content: space-between; gap: 0.5em; }

@@ -39,6 +39,28 @@ test("SummaryPage renders branches, tags, recent log and highlighted about", () 
   expect(html).toContain("1 day ago");
 });
 
+test("SummaryPage shows clone commands, jj's only for a jj history", () => {
+  const props = {
+    name: "alpha",
+    branches: [ref("main", "branch", OID)],
+    tags: [],
+    recentCommits: [commit(OID, "Add a.txt")],
+    cloneUrl: "https://git.example.com/alpha",
+    now,
+  };
+  const plain = SummaryPage(props).toString();
+  expect(plain).toContain("Clone");
+  expect(plain).toContain("git clone https://git.example.com/alpha");
+  expect(plain).not.toContain("jj git clone");
+  expect(plain).toContain('data-copy="git clone https://git.example.com/alpha"');
+
+  const jj = SummaryPage({ ...props, jj: true }).toString();
+  expect(jj).toContain("jj git clone https://git.example.com/alpha");
+
+  // Nothing rendered when the clone URL is unknown.
+  expect(SummaryPage({ ...props, cloneUrl: undefined }).toString()).not.toContain("Clone");
+});
+
 test("LogPage renders rows, decorations and pager links", () => {
   const html = LogPage({
     name: "alpha",

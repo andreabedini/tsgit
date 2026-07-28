@@ -26,9 +26,44 @@ function TagIcon() {
   );
 }
 
+function CopyIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="9" y="9" width="12" height="12" rx="2"></rect>
+      <path d="M5 15V5a2 2 0 0 1 2-2h10"></path>
+    </svg>
+  );
+}
+
+/** Ready-to-paste clone commands. jj's own clone is offered as well when the
+ *  repo's commits carry change ids, i.e. jj is what's on the other end. */
+function CloneBox(props: { url: string; jj?: boolean }) {
+  const commands = [`git clone ${props.url}`];
+  if (props.jj) commands.push(`jj git clone ${props.url}`);
+  return (
+    <div>
+      <div class="cg-eyebrow cg-rail-label">Clone</div>
+      <div class="cg-clone">
+        {commands.map((command) => (
+          <div class="cg-clone-row">
+            <code>{command}</code>
+            <button class="cg-copy" type="button" data-copy={command} aria-label={`Copy: ${command}`} title="Copy to clipboard">
+              <CopyIcon />
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export interface SummaryProps {
   name: string;
   description?: string;
+  /** Base URL this repo can be cloned from; omitted only if unknown. */
+  cloneUrl?: string;
+  /** True when the repo's history carries jj change ids. */
+  jj?: boolean;
   branches: Reference[];
   tags: Reference[];
   recentCommits: Commit[];
@@ -87,6 +122,8 @@ export function SummaryPage(props: SummaryProps) {
         </div>
 
         <aside class="cg-rail">
+          {props.cloneUrl ? <CloneBox url={props.cloneUrl} jj={props.jj} /> : null}
+
           {props.branches.length ? (
             <div>
               <div class="cg-eyebrow cg-rail-label">Branches</div>
