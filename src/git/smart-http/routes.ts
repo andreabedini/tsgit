@@ -2,6 +2,14 @@ import type { factory } from "../../app/env";
 import { badRequest, HttpError } from "../../errors";
 import { buildAdvertisement } from "./advertise";
 import { checkBasicAuth } from "./auth";
+import {
+  buildFetchV2Response,
+  buildLsRefsResponse,
+  buildV2Advertisement,
+  isV2Request,
+  parseFetchV2Args,
+  parseV2Request,
+} from "./protocolV2";
 import { applyReceivePack, encodeReportStatus, parseReceiveCommands } from "./receivePack";
 import { buildUploadPackResponse, parseUploadPackRequest } from "./uploadPack";
 import { readUntilFlush } from "./pktline";
@@ -19,7 +27,11 @@ export function registerSmartHttpRoutes(app: App): void {
       if (rejection) return rejection;
     }
     const repo = c.get("repo");
-    const body = buildAdvertisement(repo, service);
+    // v2 is fetch-only — push (git-receive-pack) always gets the v0/v1
+    // advertisement, matching real git servers.
+    const wantsV2 =
+      service === "git-upload-pack" && (c.req.header("Git-Protocol") ?? "").includes("version=2");
+    const body = wantsV2 ? buildV2Advertisement() : buildAdvertisement(repo, service);
     return new Response(body as BodyInit, {
       headers: {
         "Content-Type": `application/x-${service}-advertisement`,
@@ -31,6 +43,20 @@ export function registerSmartHttpRoutes(app: App): void {
   app.post("/:repo/git-upload-pack", async (c) => {
     const repo = c.get("repo");
     const body = new Uint8Array(await c.req.arrayBuffer());
+
+    if (isV2Request(body)) {
+      const { command, args } = parseV2Request(body);
+      const responseHeaders = { "Content-Type": "application/x-git-upload-pack-result" };
+      if (command === "ls-refs") {
+        return new Response(buildLsRefsResponse(repo, args) as BodyInit, { headers: responseHeaders });
+      }
+      if (command === "fetch") {
+        const fetchArgs = parseFetchV2Args(args);
+        return new Response(buildFetchV2Response(repo, fetchArgs) as BodyInit, { headers: responseHeaders });
+      }
+      throw badRequest(`Unsupported protocol v2 command: ${JSON.stringify(command)}`);
+    }
+
     const { wants, haves } = parseUploadPackRequest(body);
     const response = buildUploadPackResponse(repo, wants, haves);
     return new Response(response as BodyInit, {

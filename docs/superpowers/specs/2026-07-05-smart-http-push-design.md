@@ -48,10 +48,16 @@ a server just speaks v0), so v2 support can land as a separate follow-up
 without reworking what's built here:
 
 1. **This spec** — v0 fetch + push.
-2. **Follow-up** — protocol v2: `ls-refs` and `fetch` commands replacing the
-   v0 ref advertisement + `want`/`have` negotiation, capability advertisement
-   via key=value pairs. `receive-pack` is unchanged by v2 (v2 only redefines
-   the fetch side of the protocol).
+2. **Done** (`src/git/smart-http/protocolV2.ts`) — protocol v2: `ls-refs` and
+   `fetch` commands replacing the v0 ref advertisement + `want`/`have`
+   negotiation, capability advertisement via key=value pairs. `receive-pack`
+   is unchanged by v2, as planned — push always gets the v0/v1 advertisement
+   and command list regardless of the client's `Git-Protocol` header. `fetch`
+   keeps this codebase's v0 simplification of skipping real ACK/NAK
+   negotiation rounds (always answers immediately; sends a bare `ready` line
+   when the client hasn't said `done` yet, per the spec's server-decides-early
+   allowance). Base features only — no shallow/filter/ref-in-want/
+   sideband-all/packfile-uris/wait-for-done, matching v0's scope.
 
 ## Routes
 

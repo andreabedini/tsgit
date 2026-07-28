@@ -1,5 +1,7 @@
 import { test, expect } from "bun:test";
-import { encodePktLine, decodePktLine, readUntilFlush, concatBytes, FLUSH_PKT } from "../../../src/git/smart-http/pktline";
+import {
+  encodePktLine, decodePktLine, readUntilFlush, concatBytes, encodeSidebandChunks, FLUSH_PKT, DELIM_PKT,
+} from "../../../src/git/smart-http/pktline";
 
 test("encodePktLine frames a short string with a 4-hex-digit length prefix", () => {
   const encoded = encodePktLine("done\n");
@@ -64,6 +66,32 @@ test("readUntilFlush collects data lines up to (and past) the flush-pkt", () => 
   const { lines, next } = readUntilFlush(buf, 0);
   expect(lines.map((l) => new TextDecoder().decode(l))).toEqual(["want aaa\n", "want bbb\n"]);
   expect(new TextDecoder().decode(buf.subarray(next))).toBe("PACK-DATA-FOLLOWS");
+});
+
+test("DELIM_PKT is the literal 4-byte protocol-v2 delimiter marker", () => {
+  expect(new TextDecoder().decode(DELIM_PKT)).toBe("0001");
+});
+
+test("decodePktLine recognizes a delim-pkt", () => {
+  const { line, next } = decodePktLine(DELIM_PKT, 0);
+  expect(line.type).toBe("delim");
+  expect(line.payload.length).toBe(0);
+  expect(next).toBe(4);
+});
+
+test("encodeSidebandChunks prefixes each chunk with the stream-code byte", () => {
+  const data = new Uint8Array([10, 20, 30]);
+  const [chunk] = encodeSidebandChunks(1, data);
+  const { line } = decodePktLine(chunk, 0);
+  expect(Array.from(line.payload)).toEqual([1, 10, 20, 30]);
+});
+
+test("encodeSidebandChunks splits data larger than one pkt-line into multiple chunks", () => {
+  const data = new Uint8Array(150_000); // several times the per-chunk cap
+  const chunks = encodeSidebandChunks(1, data);
+  expect(chunks.length).toBeGreaterThan(1);
+  const totalPayload = chunks.reduce((sum, c) => sum + decodePktLine(c, 0).line.payload.length - 1, 0);
+  expect(totalPayload).toBe(data.length);
 });
 
 test("concatBytes joins chunks in order", () => {

@@ -164,6 +164,63 @@ test("git push rejects a non-fast-forward update without --force", async () => {
   expect(second.stderr.toLowerCase()).toMatch(/stale info|rejected|fetch first/);
 });
 
+test("git clone over protocol v2 fetches a non-empty repo", async () => {
+  const dest = join(workRoot, "clone-v2");
+  const result = await git(workRoot, "-c", "protocol.version=2", "clone", "-q", `${baseUrl}/project.git`, dest);
+  expect(result.code).toBe(0);
+  // main has picked up extra commits from earlier tests in this file (it's
+  // the same shared fixture repo) — check the original fixture history
+  // rather than an exact count, which would be order-dependent.
+  const log = await git(dest, "log", "--oneline");
+  for (const subject of fixture.commitSubjects) expect(log.stdout).toContain(subject);
+});
+
+test("git clone over protocol v2 succeeds against an empty repo", async () => {
+  const dest = join(workRoot, "clone-v2-empty");
+  const result = await git(workRoot, "-c", "protocol.version=2", "clone", "-q", `${baseUrl}/empty.git`, dest);
+  expect(result.code).toBe(0);
+});
+
+test("git fetch over protocol v2 (using haves) picks up a new commit pushed after the initial clone", async () => {
+  const dest = join(workRoot, "fetch-v2");
+  await git(workRoot, "-c", "protocol.version=2", "clone", "-q", `${baseUrl}/project.git`, dest);
+
+  // Push a new commit from a second clone so `dest` has to negotiate with
+  // haves (its own history) rather than fetching from scratch.
+  const pusher = join(workRoot, "fetch-v2-pusher");
+  await git(workRoot, "clone", "-q", `${baseUrl}/project.git`, pusher);
+  await Bun.write(join(pusher, "v2-fetch.txt"), "hello\n");
+  await git(pusher, "add", "v2-fetch.txt");
+  await git(pusher, "commit", "-q", "-m", "add v2-fetch.txt");
+  const push = await git(pusher, "push", authedUrl("project.git"), "HEAD:refs/heads/main");
+  expect(push.code).toBe(0);
+
+  const fetch = await git(dest, "-c", "protocol.version=2", "fetch", "origin", "main");
+  expect(fetch.code).toBe(0);
+  const log = await git(dest, "log", "--oneline", "-1", "FETCH_HEAD");
+  expect(log.stdout).toContain("add v2-fetch.txt");
+});
+
+test("git ls-remote over protocol v2 lists branches and tags", async () => {
+  const result = await git(workRoot, "-c", "protocol.version=2", "ls-remote", `${baseUrl}/project.git`);
+  expect(result.code).toBe(0);
+  expect(result.stdout).toContain("refs/heads/main");
+  expect(result.stdout).toContain("refs/tags/v1.0");
+  expect(result.stdout).toContain("refs/tags/v2.0");
+});
+
+test("git push (unaffected by protocol v2) still works when the client requests v2", async () => {
+  const dest = join(workRoot, "push-v2-client");
+  await git(workRoot, "-c", "protocol.version=2", "clone", "-q", `${baseUrl}/project.git`, dest);
+  await Bun.write(join(dest, "pushed-v2.txt"), "hello\n");
+  await git(dest, "add", "pushed-v2.txt");
+  await git(dest, "commit", "-q", "-m", "add pushed-v2.txt");
+  const result = await git(
+    dest, "-c", "protocol.version=2", "push", authedUrl("project.git"), "HEAD:refs/heads/pushed-v2",
+  );
+  expect(result.code).toBe(0);
+});
+
 test("git push rejected to a non-bare repository is reported to the client", async () => {
   // Publish the fixture's own non-bare working tree under the scan root.
   const nonBareTarget = join(scanRoot, "nonbare.git");
