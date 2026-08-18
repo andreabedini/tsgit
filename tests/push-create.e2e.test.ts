@@ -73,7 +73,7 @@ beforeAll(async () => {
   await Bun.spawn(["git", "init", "-q", "--bare", "-b", "master", join(scanRoot, "preexisting.git")]).exited;
 
   const hash = await Bun.password.hash(PASSWORD, { algorithm: "bcrypt", cost: 4 });
-  const base: Omit<SiteConfig, "TSGIT_SCAN_PATH" | "TSGIT_PUSH_CREATE"> = {
+  const base: Omit<SiteConfig, "TSGIT_REPO_PATH" | "TSGIT_PUSH_CREATE"> = {
     TSGIT_SUMMARY_BRANCHES: 10, TSGIT_SUMMARY_TAGS: 10, TSGIT_SUMMARY_LOG: 10,
     TSGIT_LOG_PAGE_SIZE: 50, TSGIT_REPOLIST_PAGE_SIZE: 50,
     mimeTypes: DEFAULT_MIME_TYPES, pushCredentials: parseHtpasswd(`alice:${hash}`),
@@ -82,14 +82,14 @@ beforeAll(async () => {
   const app = createApp();
   server = Bun.serve({
     port: 0,
-    fetch: (req) => app.fetch(req, { ...base, TSGIT_SCAN_PATH: scanRoot, TSGIT_PUSH_CREATE: true }),
+    fetch: (req) => app.fetch(req, { ...base, TSGIT_REPO_PATH: scanRoot, TSGIT_PUSH_CREATE: true }),
   });
   baseUrl = `http://127.0.0.1:${server.port}`;
 
   const closedApp = createApp();
   closedServer = Bun.serve({
     port: 0,
-    fetch: (req) => closedApp.fetch(req, { ...base, TSGIT_SCAN_PATH: closedScanRoot, TSGIT_PUSH_CREATE: false }),
+    fetch: (req) => closedApp.fetch(req, { ...base, TSGIT_REPO_PATH: closedScanRoot, TSGIT_PUSH_CREATE: false }),
   });
   closedBaseUrl = `http://127.0.0.1:${closedServer.port}`;
 });

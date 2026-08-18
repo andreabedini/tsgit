@@ -6,7 +6,7 @@ import type { HtpasswdEntry } from "../config/htpasswd";
 
 export type Env = {
   Bindings: {
-    TSGIT_SCAN_PATH: string;
+    TSGIT_REPO_PATH: string;
     TSGIT_CLONE_URL_BASE?: string;
     TSGIT_SUMMARY_BRANCHES: number;
     TSGIT_SUMMARY_TAGS: number;

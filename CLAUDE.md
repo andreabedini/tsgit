@@ -88,7 +88,7 @@ is a Bun server object (`{ port, fetch }`) that calls `app.fetch(req, loadConfig
 
 | Variable | Default | Notes |
 |---|---|---|
-| `TSGIT_SCAN_PATH` | `/srv/git` | directory scanned for repositories |
+| `TSGIT_REPO_PATH` | `/srv/git` | directory scanned for repositories |
 | `TSGIT_CLONE_URL_BASE` | — | base for displayed clone URLs |
 | `TSGIT_SUMMARY_BRANCHES` | `10` | branches on the summary page |
 | `TSGIT_SUMMARY_TAGS` | `10` | tags on the summary page |

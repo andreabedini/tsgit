@@ -54,7 +54,7 @@ beforeAll(async () => {
 
   const hash = await Bun.password.hash(PASSWORD, { algorithm: "bcrypt", cost: 4 });
   const cfg: SiteConfig = {
-    TSGIT_SCAN_PATH: scanRoot, TSGIT_SUMMARY_BRANCHES: 10, TSGIT_SUMMARY_TAGS: 10,
+    TSGIT_REPO_PATH: scanRoot, TSGIT_SUMMARY_BRANCHES: 10, TSGIT_SUMMARY_TAGS: 10,
     TSGIT_SUMMARY_LOG: 10, TSGIT_LOG_PAGE_SIZE: 50, TSGIT_REPOLIST_PAGE_SIZE: 50, TSGIT_PUSH_CREATE: false,
     mimeTypes: DEFAULT_MIME_TYPES, pushCredentials: parseHtpasswd(`alice:${hash}`),
   };

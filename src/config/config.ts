@@ -78,7 +78,7 @@ export function loadConfig(
   env: Record<string, string | undefined> = process.env,
 ): SiteConfig {
   return {
-    TSGIT_SCAN_PATH: env.TSGIT_SCAN_PATH ?? "/srv/git",
+    TSGIT_REPO_PATH: env.TSGIT_REPO_PATH ?? "/srv/git",
     TSGIT_CLONE_URL_BASE: env.TSGIT_CLONE_URL_BASE,
     TSGIT_SUMMARY_BRANCHES: num(env.TSGIT_SUMMARY_BRANCHES, 10),
     TSGIT_SUMMARY_TAGS: num(env.TSGIT_SUMMARY_TAGS, 10),

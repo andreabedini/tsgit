@@ -151,7 +151,7 @@ export type JjLayout =
   | "native";   // jj's non-git backend — nothing for tsgit to serve
 
 export interface JjWorkspace extends JjFixtureRepo {
-  root: string;       // directory to point TSGIT_SCAN_PATH at
+  root: string;       // directory to point TSGIT_REPO_PATH at
   workspace: string;  // the workspace directory inside it
   name: string;       // repo name tsgit should report (the workspace dir name)
 }

@@ -1,0 +1,15 @@
+# Only package.json, bun.lock and src/ are needed to run the server.
+node_modules
+.jj
+.git
+tests
+docs
+.claude
+.superpowers
+.vscode
+.idea
+Dockerfile
+.dockerignore
+*.md
+tsgit.example.yaml
+mise.toml

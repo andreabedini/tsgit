@@ -20,7 +20,7 @@ beforeAll(async () => {
   await Bun.spawn(["cp", "-r", fixture.path, join(root, "project.git")]).exited;
   app = createApp();
   cfg = {
-    TSGIT_SCAN_PATH: root, TSGIT_SUMMARY_BRANCHES: 10, TSGIT_SUMMARY_TAGS: 10,
+    TSGIT_REPO_PATH: root, TSGIT_SUMMARY_BRANCHES: 10, TSGIT_SUMMARY_TAGS: 10,
     TSGIT_SUMMARY_LOG: 10, TSGIT_LOG_PAGE_SIZE: 10, TSGIT_REPOLIST_PAGE_SIZE: 50, TSGIT_PUSH_CREATE: false,
     mimeTypes: DEFAULT_MIME_TYPES, pushCredentials: [],
   };
@@ -63,7 +63,7 @@ test("a non-colocated jj workspace is served under its directory name", async ()
   // No `.git` anywhere: the git dir lives inside `.jj/repo/store/`.
   const ws = await createJjWorkspace("store", "notebook");
   try {
-    const wsCfg = { ...cfg, TSGIT_SCAN_PATH: ws.root };
+    const wsCfg = { ...cfg, TSGIT_REPO_PATH: ws.root };
     const index = await app.request("/", undefined, wsCfg);
     expect(await index.text()).toContain("notebook");
 

@@ -36,7 +36,7 @@ export function createApp() {
     // Optional `?q=` filters the index by repo name or description.
     const q = (c.req.query("q") ?? "").trim();
     const needle = q.toLowerCase();
-    const matched = scanRepos(c.env.TSGIT_SCAN_PATH).filter(
+    const matched = scanRepos(c.env.TSGIT_REPO_PATH).filter(
       (r) =>
         !needle ||
         r.name.toLowerCase().includes(needle) ||

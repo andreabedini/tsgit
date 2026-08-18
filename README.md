@@ -24,7 +24,7 @@ git remote add origin https://tsgit.example/newthing.git
 git push origin main
 ```
 
-The repo is created as a bare `newthing.git` directly under `TSGIT_SCAN_PATH`, and HEAD is
+The repo is created as a bare `newthing.git` directly under `TSGIT_REPO_PATH`, and HEAD is
 pointed at the branch you pushed. Only a push can create anything: fetching a repository
 that doesn't exist is still a 404, credentials are required before creation (with no
 `TSGIT_HTPASSWD_FILE` nothing can be created at all), and a name that isn't a plain
@@ -52,7 +52,7 @@ and it works as a revision anywhere a hash does — `/repo/commit/quqpyrzn/`,
 `/repo/log/?h=quqpyrzn`. Abbreviations are fine: change ids are spelled in jj's
 reverse-hex alphabet (`k`–`z`), so they can never be mistaken for an oid prefix.
 
-**jj workspaces are discovered too.** `TSGIT_SCAN_PATH` may hold jj workspaces as well
+**jj workspaces are discovered too.** `TSGIT_REPO_PATH` may hold jj workspaces as well
 as plain git repos, colocated or not — including the layout where there is no `.git`
 at all and the git dir sits inside `.jj/repo/store/`. tsgit reads the store's
 `git_target` to find it and serves the repo under the *workspace* directory's name.
@@ -73,7 +73,7 @@ the branch sitting on that commit, if any, as the default ref.
 
 ```sh
 bun install
-TSGIT_SCAN_PATH=/path/to/your/git/repos bun run dev
+TSGIT_REPO_PATH=/path/to/your/git/repos bun run dev
 # then open http://localhost:3000
 ```
 
@@ -85,7 +85,7 @@ All configuration comes from `TSGIT_*` environment variables:
 
 | Variable | Default | Description |
 |---|---|---|
-| `TSGIT_SCAN_PATH` | `/srv/git` | Directory scanned for git repositories (bare or non-bare) |
+| `TSGIT_REPO_PATH` | `/srv/git` | Directory scanned for git repositories (bare or non-bare) |
 | `TSGIT_CLONE_URL_BASE` | — | If set, shown as the clone-URL base on the summary page |
 | `TSGIT_SUMMARY_BRANCHES` | `10` | Branches listed on the summary page |
 | `TSGIT_SUMMARY_TAGS` | `10` | Tags listed on the summary page |
@@ -94,6 +94,36 @@ All configuration comes from `TSGIT_*` environment variables:
 | `TSGIT_REPOLIST_PAGE_SIZE` | `50` | Repositories per page on the index |
 | `TSGIT_HTPASSWD_FILE` | — | htpasswd file whose users may push; without it every push is rejected |
 | `TSGIT_PUSH_CREATE` | off | `1`/`true`/`yes`/`on` lets an authenticated push create a repository that doesn't exist yet |
+
+## Docker
+
+```sh
+docker build -t tsgit .
+docker run -d --name tsgit -p 3000:3000 -v tsgit-repos:/srv/git tsgit
+```
+
+Repositories live on the `/srv/git` volume — the value of `TSGIT_REPO_PATH` — so the
+image carries no data and anything pushed survives a rebuild. To serve repositories that
+already exist on the host, bind-mount them instead: `-v /srv/git:/srv/git`.
+
+The server runs as the unprivileged `bun` user (uid 1000). A named or anonymous volume
+inherits that ownership from the image, but a bind mount keeps the host's — so
+`chown -R 1000:1000` it if you want push-to-create to be able to write there.
+
+Pushing needs an htpasswd file mounted in:
+
+```sh
+docker run -d --name tsgit -p 3000:3000 \
+  -v tsgit-repos:/srv/git \
+  -v /etc/tsgit/htpasswd:/etc/tsgit/htpasswd:ro \
+  -e TSGIT_HTPASSWD_FILE=/etc/tsgit/htpasswd \
+  -e TSGIT_PUSH_CREATE=1 \
+  -e TSGIT_CLONE_URL_BASE=https://tsgit.example \
+  tsgit
+```
+
+libgit2 comes from the image's `apk` package and is the only native dependency; tsgit
+never shells out to `git`. `HEALTHCHECK` polls `/healthz`.
 
 ## Development
 

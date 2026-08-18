@@ -31,7 +31,7 @@ export const useRepository = factory.createMiddleware(async (c, next) => {
     if (rejection) return rejection;
   }
 
-  let disc = lookupRepo(c.env.TSGIT_SCAN_PATH, name);
+  let disc = lookupRepo(c.env.TSGIT_REPO_PATH, name);
   let created = false;
 
   if (!disc) {
@@ -47,7 +47,7 @@ export const useRepository = factory.createMiddleware(async (c, next) => {
       c.set("pushCreatePending", true);
       return next();
     }
-    disc = createBareRepo(c.env.TSGIT_SCAN_PATH, name);
+    disc = createBareRepo(c.env.TSGIT_REPO_PATH, name);
     created = true;
   }
 
@@ -63,7 +63,7 @@ export const useRepository = factory.createMiddleware(async (c, next) => {
     // instead of leaving an empty repo on the index page.
     const abandoned = created && !hasAnyRef(repo);
     repo.free();
-    if (abandoned) removeBareRepo(c.env.TSGIT_SCAN_PATH, disc.name);
+    if (abandoned) removeBareRepo(c.env.TSGIT_REPO_PATH, disc.name);
   }
 });
 

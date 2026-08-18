@@ -27,9 +27,9 @@ test("scanRepos discovers bare repos and strips .git from the name", () => {
   expect(repos[0].path).toBe(join(root, "project.git"));
 });
 
-test("loadConfig provides defaults and honors TSGIT_SCAN_PATH", () => {
-  const cfg = loadConfig({ TSGIT_SCAN_PATH: "/srv/git" });
-  expect(cfg.TSGIT_SCAN_PATH).toBe("/srv/git");
+test("loadConfig provides defaults and honors TSGIT_REPO_PATH", () => {
+  const cfg = loadConfig({ TSGIT_REPO_PATH: "/srv/git" });
+  expect(cfg.TSGIT_REPO_PATH).toBe("/srv/git");
   expect(cfg.TSGIT_LOG_PAGE_SIZE).toBeGreaterThan(0);
   expect(cfg.TSGIT_SUMMARY_LOG).toBeGreaterThan(0);
 });
